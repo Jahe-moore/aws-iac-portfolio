@@ -449,3 +449,27 @@ pre.code { margin: 0; padding: 0.85rem 1rem; background: #F6F8FA; color: #1F2937
 
 .foot-name a { color: inherit; text-decoration: none; }
 .foot-name a:hover { text-decoration: underline; }
+
+/* Intro full width, the four steps in one row under it */
+.lead-grid { grid-template-columns: 1fr; gap: 0.75rem; }
+.lead-grid p { max-width: 60rem; margin-bottom: 0; }
+.ship { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ship li { grid-template-columns: 1.6rem 1fr; grid-template-rows: auto auto; row-gap: 0.15rem; border-bottom: 0; border-right: 1px solid var(--border); align-items: start; }
+.ship li:last-child { border-right: 0; }
+.ship li::before { grid-row: 1 / span 2; }
+.ship b { grid-column: 2; }
+.ship span { grid-column: 2; }
+@media (max-width: 860px) {
+  .ship { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ship li:nth-child(2) { border-right: 0; }
+  .ship li:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+}
+@media (max-width: 480px) {
+  .ship { grid-template-columns: 1fr; }
+  .ship li { border-right: 0; border-bottom: 1px solid var(--border); }
+  .ship li:last-child { border-bottom: 0; }
+}
+.ship li { display: block; padding: 0.7rem 0.9rem; }
+.ship li::before { display: inline-flex; vertical-align: middle; margin-right: 0.5rem; }
+.ship b { vertical-align: middle; }
+.ship span { display: block; margin-top: 0.4rem; line-height: 1.5; }
