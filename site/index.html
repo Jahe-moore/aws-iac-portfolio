@@ -15,12 +15,81 @@
   <header class="hero">
     <div class="wrap">
       <h1>Infrastructure as code, running live</h1>
-      <p class="lede">A static website on AWS where every resource is defined in Terraform and every change ships through a GitHub Actions pipeline. Nothing on this page was configured by hand in the AWS console.</p>
+      <p class="lede">A production-style website on AWS, built and changed only through code, for about ten cents a month.</p>
       <p class="byline">Jake Moore &middot; Management Information Systems, Eller College of Management, University of Arizona &middot; graduating May 2027 &middot; <a href="https://github.com/Jahe-moore/aws-iac-portfolio" rel="noopener">Source on GitHub</a></p>
     </div>
   </header>
 
-  <section class="strip" aria-label="Live status">
+  <section class="results" aria-labelledby="results-h">
+    <div class="wrap">
+      <h2 id="results-h" class="sr-only">Results</h2>
+      <div class="tiles">
+        <div class="tile">
+          <span class="tile-k">Monthly cost</span>
+          <span class="tile-v">~$0.10</span>
+          <span class="tile-s">AWS free tier covers almost everything; $10 budget alert</span>
+        </div>
+        <div class="tile">
+          <span class="tile-k">Push to live</span>
+          <span class="tile-v">~2 min</span>
+          <span class="tile-s">Every change ships through the pipeline</span>
+        </div>
+        <div class="tile">
+          <span class="tile-k">Uptime</span>
+          <span class="tile-v pending" id="r-uptime">Not available yet</span>
+          <span class="tile-s">Checked every 30 minutes</span>
+        </div>
+        <div class="tile">
+          <span class="tile-k">Security scan</span>
+          <span class="tile-v pending" id="r-scan">Not available yet</span>
+          <span class="tile-s">Checkov code scanner, every push; build stops on any failure</span>
+        </div>
+        <div class="tile">
+          <span class="tile-k">Stored cloud keys</span>
+          <span class="tile-v">0</span>
+          <span class="tile-s">Short-lived login tokens (OIDC) only</span>
+        </div>
+        <div class="tile">
+          <span class="tile-k">Manual changes</span>
+          <span class="tile-v pending" id="r-drift">Not available yet</span>
+          <span class="tile-s">Nightly check that AWS matches the code</span>
+        </div>
+      </div>
+
+      <div class="top-split">
+        <div>
+          <h2 class="top-h">Stack and cost</h2>
+          <table class="table stack">
+            <thead><tr><th scope="col">Layer</th><th scope="col">AWS service</th><th scope="col">What it does</th><th scope="col" class="num">Monthly cost</th></tr></thead>
+            <tbody>
+              <tr><th scope="row" data-label="Layer">Delivery</th><td data-label="Service">GitHub Actions + Terraform, state in S3</td><td data-label="What it does">Tests and applies every change from code</td><td class="num" data-label="Cost">$0</td></tr>
+              <tr><th scope="row" data-label="Layer">Identity</th><td data-label="Service">IAM + OIDC</td><td data-label="What it does">Gives the pipeline a short-lived login, no stored keys</td><td class="num" data-label="Cost">$0</td></tr>
+              <tr><th scope="row" data-label="Layer">Hosting</th><td data-label="Service">S3 + CloudFront + ACM certificate</td><td data-label="What it does">Stores the files, serves them worldwide over HTTPS</td><td class="num" data-label="Cost">~$0 <span class="cost-note">free tier, 1 TB</span></td></tr>
+              <tr><th scope="row" data-label="Layer">API</th><td data-label="Service">Lambda (Python)</td><td data-label="What it does">Runs code on request, no server to manage</td><td class="num" data-label="Cost">$0 <span class="cost-note">1M requests free</span></td></tr>
+              <tr><th scope="row" data-label="Layer">Data</th><td data-label="Service">DynamoDB on-demand</td><td data-label="What it does">Database for the visitor counter and uptime history</td><td class="num" data-label="Cost">$0</td></tr>
+              <tr><th scope="row" data-label="Layer">Scheduling</th><td data-label="Service">EventBridge</td><td data-label="What it does">Runs the uptime check every 30 minutes</td><td class="num" data-label="Cost">$0</td></tr>
+              <tr><th scope="row" data-label="Layer">Monitoring</th><td data-label="Service">CloudWatch alarms + metrics</td><td data-label="What it does">Tracks response times and errors, raises alarms</td><td class="num" data-label="Cost">~$0.06 <span class="cost-note">metric reads</span></td></tr>
+              <tr><th scope="row" data-label="Layer">Alerts</th><td data-label="Service">SNS email</td><td data-label="What it does">Emails me when an alarm fires</td><td class="num" data-label="Cost">$0</td></tr>
+              <tr><th scope="row" data-label="Layer">DNS</th><td data-label="Service">CNAME at existing registrar</td><td data-label="What it does">Points aws.jakemoore.dev at CloudFront</td><td class="num" data-label="Cost">$0</td></tr>
+            </tbody>
+            <tfoot><tr><th scope="row" colspan="3">Total, with a $10/month budget alert</th><td class="num">~$0.10/month</td></tr></tfoot>
+          </table>
+        </div>
+        <div>
+          <h2 class="top-h">What this demonstrates</h2>
+          <ul class="proof">
+            <li><h3>Cost control</h3><p>Production patterns for about ten cents a month, with a budget guardrail.</p><a href="#overview" data-tab="overview">See Overview</a></li>
+            <li><h3>Security by default</h3><p>No stored keys, least-privilege roles, private storage, strict headers, and a security scan that gates every build.</p><a href="#security" data-tab="security">See Security</a></li>
+            <li><h3>Change control and audit trail</h3><p>Every change is a reviewed commit, then plan, then apply. Nothing changed by hand; a nightly drift check proves it.</p><a href="#operations" data-tab="operations">See Operations</a></li>
+            <li><h3>Reliability and monitoring</h3><p>Uptime checks, performance metrics and email alarms.</p><a href="#operations" data-tab="operations">See Operations</a></li>
+            <li><h3>Rebuildable</h3><p>The whole stack can be recreated from the repository with one command. That is the disaster-recovery plan.</p><a href="#overview" data-tab="overview">See Overview</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="strip" aria-label="Latest deployment">
     <div class="wrap strip-grid">
       <div class="cell">
         <span class="k">Last deploy</span>
@@ -35,7 +104,7 @@
         <span class="v" id="s-run" data-empty>Not available yet</span>
       </div>
       <div class="cell">
-        <span class="k">Resources in Terraform</span>
+        <span class="k">Terraform resources</span>
         <span class="v" id="s-resources" data-empty>Not available yet</span>
       </div>
       <div class="cell">
@@ -52,10 +121,10 @@
   <nav class="tabbar" aria-label="Sections">
     <div class="wrap">
       <div class="tabs" role="tablist" aria-label="Portfolio sections">
-        <button type="button" role="tab" id="tab-overview" aria-controls="overview" aria-selected="true">Overview</button>
-        <button type="button" role="tab" id="tab-live" aria-controls="live" aria-selected="false" tabindex="-1">Live</button>
-        <button type="button" role="tab" id="tab-security" aria-controls="security" aria-selected="false" tabindex="-1">Security</button>
-        <button type="button" role="tab" id="tab-operations" aria-controls="operations" aria-selected="false" tabindex="-1">Operations</button>
+        <button type="button" role="tab" id="tab-overview" aria-controls="overview" aria-selected="true"><span class="tab-t">Overview</span><span class="tab-s">Architecture, how it was built, every resource</span></button>
+        <button type="button" role="tab" id="tab-live" aria-controls="live" aria-selected="false" tabindex="-1"><span class="tab-t">Live</span><span class="tab-s">This visit traced through AWS, traffic by country</span></button>
+        <button type="button" role="tab" id="tab-security" aria-controls="security" aria-selected="false" tabindex="-1"><span class="tab-t">Security</span><span class="tab-s">Controls, scan results, live header check</span></button>
+        <button type="button" role="tab" id="tab-operations" aria-controls="operations" aria-selected="false" tabindex="-1"><span class="tab-t">Operations</span><span class="tab-s">Uptime, API performance, alerts, drift check</span></button>
       </div>
     </div>
   </nav>
@@ -190,45 +259,19 @@
       <p class="note" id="inv-note">Every resource Terraform manages in the live deployment, grouped by AWS service.</p>
       <div class="inv" id="inv-grid"><p class="muted">Not available yet</p></div>
 
-      <div class="split">
-        <div>
-          <h3>Stack</h3>
-          <ul class="chips">
-            <li>Terraform</li><li>GitHub Actions</li><li>IAM / OIDC</li><li>S3</li><li>CloudFront</li><li>ACM</li>
-            <li>Lambda (Python)</li><li>DynamoDB</li><li>EventBridge</li><li>CloudWatch</li><li>SNS</li>
-          </ul>
-          <dl class="glossary">
-            <div><dt>Terraform</dt><dd>Code that declares cloud resources; it computes and applies the difference.</dd></div>
-            <div><dt>OIDC</dt><dd>A sign-in standard that lets GitHub prove its identity to AWS without a password.</dd></div>
-            <div><dt>S3</dt><dd>File storage; holds the site's HTML, CSS and JavaScript.</dd></div>
-            <div><dt>CloudFront</dt><dd>Content delivery network; serves the site over HTTPS from edge locations.</dd></div>
-            <div><dt>ACM</dt><dd>Certificate Manager; issues and renews the TLS certificate.</dd></div>
-            <div><dt>Lambda</dt><dd>Runs a function on request, with no server to manage.</dd></div>
-            <div><dt>DynamoDB</dt><dd>Serverless key-value database.</dd></div>
-            <div><dt>EventBridge</dt><dd>Scheduler that triggers a function on a timer.</dd></div>
-            <div><dt>CloudWatch</dt><dd>Metrics, logs and alarms.</dd></div>
-            <div><dt>SNS</dt><dd>Notification service; delivers alarm emails.</dd></div>
-          </dl>
-        </div>
-        <div>
-          <h3>Monthly cost</h3>
-          <table class="table cost">
-            <thead><tr><th scope="col">Service</th><th scope="col">Pricing basis</th><th scope="col" class="num">Cost</th></tr></thead>
-            <tbody>
-              <tr><td>S3</td><td>A few hundred KB of site files and state</td><td class="num">~$0</td></tr>
-              <tr><td>CloudFront</td><td>Free tier, 1 TB transfer per month</td><td class="num">$0</td></tr>
-              <tr><td>ACM</td><td>Public certificates are free</td><td class="num">$0</td></tr>
-              <tr><td>Lambda</td><td>Free tier, 1M requests per month</td><td class="num">$0</td></tr>
-              <tr><td>DynamoDB</td><td>On-demand, within free tier</td><td class="num">$0</td></tr>
-              <tr><td>EventBridge</td><td>Scheduled rules</td><td class="num">$0</td></tr>
-              <tr><td>CloudWatch</td><td>10 alarms free</td><td class="num">$0</td></tr>
-              <tr><td>SNS</td><td>Email notifications</td><td class="num">$0</td></tr>
-              <tr><td>DNS</td><td>CNAME at Namecheap</td><td class="num">$0</td></tr>
-            </tbody>
-            <tfoot><tr><th scope="row" colspan="2">Total, guarded by a $10/month budget alert</th><td class="num">~$0</td></tr></tfoot>
-          </table>
-        </div>
-      </div>
+      <h3>Terms used on this page</h3>
+      <dl class="glossary glossary-wide">
+        <div><dt>Terraform</dt><dd>Code that declares cloud resources; it computes and applies the difference.</dd></div>
+        <div><dt>OIDC</dt><dd>A sign-in standard that lets GitHub prove its identity to AWS without a password.</dd></div>
+        <div><dt>S3</dt><dd>File storage; holds the site's HTML, CSS and JavaScript.</dd></div>
+        <div><dt>CloudFront</dt><dd>Content delivery network; serves the site over HTTPS from edge locations.</dd></div>
+        <div><dt>ACM</dt><dd>Certificate Manager; issues and renews the TLS certificate.</dd></div>
+        <div><dt>Lambda</dt><dd>Runs a function on request, with no server to manage.</dd></div>
+        <div><dt>DynamoDB</dt><dd>Serverless key-value database.</dd></div>
+        <div><dt>EventBridge</dt><dd>Scheduler that triggers a function on a timer.</dd></div>
+        <div><dt>CloudWatch</dt><dd>Metrics, logs and alarms.</dd></div>
+        <div><dt>SNS</dt><dd>Notification service; delivers alarm emails.</dd></div>
+      </dl>
     </section>
 
     <!-- ============ LIVE ============ -->

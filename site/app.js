@@ -48,6 +48,27 @@
     if (panel && scroll && target.scrollIntoView) target.scrollIntoView({ block: "start" });
   }
   window.addEventListener("hashchange", function () { route(true); });
+
+  /* "See ..." links in the summary open the right tab and bring it into view. */
+  Array.prototype.forEach.call(document.querySelectorAll("a[data-tab]"), function (a) {
+    a.addEventListener("click", function (e) {
+      var id = a.getAttribute("data-tab");
+      if (ids.indexOf(id) === -1) return;
+      e.preventDefault();
+      select(id, false, true);
+      var bar = document.querySelector(".tabbar");
+      if (bar && bar.scrollIntoView) bar.scrollIntoView({ block: "start" });
+    });
+  });
+
+  function setTile(id, parts, cls) {
+    var n = $(id);
+    if (!n) return;
+    n.textContent = "";
+    n.classList.remove("pending");
+    if (cls) n.classList.add(cls);
+    parts.forEach(function (p) { n.appendChild(typeof p === "string" ? document.createTextNode(p) : p); });
+  }
   route(false);
 
   /* ---------- helpers ---------- */
@@ -211,6 +232,9 @@
       }
       if (s !== null) $("sec-skipped").textContent = s;
       if (p !== null && f !== null) {
+        var small = document.createElement("small");
+        small.textContent = f + " failed";
+        setTile("r-scan", [p + " passed", small], scan.failed > 0 ? "bad" : null);
         fill($("sec-scan-inline"), ["Latest: " + p + " passed, " + f + " failed" + (s !== null ? ", " + s + " skipped as accepted risks." : ".")]);
       }
       if (when) $("sec-tool").textContent = tool + " results from the build deployed " + rel(when) + ".";
@@ -306,6 +330,7 @@
   /* ---------- drift.json ---------- */
   getJSON("/status/drift.json").then(function (d) {
     if (typeof d.drift !== "boolean") return;
+    setTile("r-drift", [d.drift ? "Drift found" : "0 drift"], d.drift ? "bad" : null);
     var when = date(d.checked_at);
     var parts = [el("span", "badge " + (d.drift ? "bad" : "ok"), d.drift ? "Drift found" : "No drift")];
     parts.push("Last nightly check" + (when ? " " + rel(when) : ""));
@@ -432,6 +457,7 @@
     if (ms !== null) $("op-latency").textContent = ms + " ms";
     if (typeof d.uptime_pct === "number" && isFinite(d.uptime_pct)) {
       $("op-uptime").textContent = (Math.round(d.uptime_pct * 10) / 10) + "%";
+      setTile("r-uptime", [(Math.round(d.uptime_pct * 10) / 10) + "%"], null);
     }
     if (checked) {
       var c = $("op-checked");
