@@ -136,8 +136,26 @@ data "aws_cloudfront_cache_policy" "disabled" {
   name = "Managed-CachingDisabled"
 }
 
-data "aws_cloudfront_origin_request_policy" "all_except_host" {
-  name = "Managed-AllViewerExceptHostHeader"
+# Pass the API only what it uses: the viewer's country, TLS and HTTP version,
+# which CloudFront adds itself. No cookies, no other viewer headers.
+resource "aws_cloudfront_origin_request_policy" "api" {
+  name    = "${var.project}-api-request"
+  comment = "Viewer country, TLS and HTTP version for the API"
+
+  cookies_config {
+    cookie_behavior = "none"
+  }
+
+  headers_config {
+    header_behavior = "whitelist"
+    headers {
+      items = ["CloudFront-Viewer-Country", "CloudFront-Viewer-TLS", "CloudFront-Viewer-Http-Version"]
+    }
+  }
+
+  query_strings_config {
+    query_string_behavior = "none"
+  }
 }
 
 # Security headers on every response.
@@ -216,7 +234,7 @@ resource "aws_cloudfront_distribution" "site" {
     allowed_methods            = ["GET", "HEAD"]
     cached_methods             = ["GET", "HEAD"]
     cache_policy_id            = data.aws_cloudfront_cache_policy.disabled.id
-    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.all_except_host.id
+    origin_request_policy_id   = aws_cloudfront_origin_request_policy.api.id
     response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
     compress                   = true
   }

@@ -75,6 +75,12 @@ data "aws_iam_policy_document" "lambda" {
   }
 
   statement {
+    sid       = "ReadOwnPerformance"
+    actions   = ["cloudwatch:GetMetricData"]
+    resources = ["*"]
+  }
+
+  statement {
     sid       = "Tracing"
     actions   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
     resources = ["*"]

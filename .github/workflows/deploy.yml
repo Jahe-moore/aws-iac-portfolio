@@ -96,7 +96,8 @@ jobs:
           BUCKET=$(terraform -chdir=infra output -raw site_bucket)
           DIST=$(terraform -chdir=infra output -raw distribution_id)
           CERT=$(terraform -chdir=infra output -raw certificate_arn)
-          export RESOURCES=$(terraform -chdir=infra state list | grep -vc '^data\.')
+          terraform -chdir=infra state list | grep -v '^data\.' > inventory.txt
+          export RESOURCES=$(wc -l < inventory.txt)
           export CERT_EXPIRES=$(aws acm describe-certificate --region us-east-1 --certificate-arn "$CERT" --query Certificate.NotAfter --output text)
           python3 - <<'EOF'
           import json, os, datetime
@@ -111,6 +112,8 @@ jobs:
               "resources": int(os.environ["RESOURCES"]),
               "cert_expires": os.environ["CERT_EXPIRES"],
               "scan": json.load(open("scan.json")),
+              "inventory": [{"address": a, "type": a.split(".")[0]}
+                            for a in open("inventory.txt").read().split()],
           }, open("deploy.json", "w"), indent=2)
           EOF
           aws s3 sync site/ "s3://$BUCKET" --delete --exclude "status/*"
