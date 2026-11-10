@@ -19,3 +19,13 @@ variable "github_repo" {
   description = "Name of the GitHub repo that holds this code"
   type        = string
 }
+
+variable "github_owner_id" {
+  description = "Numeric GitHub account ID (part of the OIDC subject)"
+  type        = string
+}
+
+variable "github_repo_id" {
+  description = "Numeric GitHub repo ID (part of the OIDC subject)"
+  type        = string
+}

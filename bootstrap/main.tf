@@ -90,11 +90,13 @@ data "aws_iam_policy_document" "github_trust" {
       values   = ["sts.amazonaws.com"]
     }
 
-    # Only workflows in YOUR repo can use this role.
+    # Only workflows in YOUR repo can use this role. GitHub's immutable subject
+    # includes the numeric owner and repo IDs, so a deleted-and-recreated repo
+    # with the same name cannot reuse this role.
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_owner}/${var.github_repo}:*"]
+      values   = ["repo:${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}:*"]
     }
   }
 }
