@@ -65,7 +65,7 @@ You need an AWS account, a GitHub account, a domain whose DNS you control, and T
    ```
    Keep the local `terraform.tfstate` it creates; it is the record of these resources.
 5. **Point the project at your domain.** Set `domain_name` in `infra/variables.tf`.
-6. **Add the repo variables** (Settings, Secrets and variables, Actions): `AWS_ROLE_ARN`, `TF_STATE_BUCKET`, `AWS_REGION` (the bootstrap outputs).
+6. **Add the repo settings** (Settings, Secrets and variables, Actions): secret `AWS_ROLE_ARN`, variables `TF_STATE_BUCKET` and `AWS_REGION` (the bootstrap outputs). The role ARN is a secret only so logs never print the account number.
 7. **Push to `main`.** The pipeline requests the certificate and waits for DNS validation. While it waits, add two CNAME records at your DNS provider:
    - the validation record: `aws acm describe-certificate --region us-east-1 --certificate-arn <arn>` shows its name and value
    - your subdomain pointing to the CloudFront domain (the `cloudfront_domain` output)
