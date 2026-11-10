@@ -2,7 +2,7 @@
 
 Live: **https://aws.jakemoore.dev**
 
-A website on AWS where every resource is defined in Terraform and every change ships through a GitHub Actions pipeline. GitHub logs in to AWS with short-lived OIDC tokens, so no cloud keys are stored anywhere. The page explains the project and shows its own Terraform and pipeline code, read from this repository.
+A website on AWS where every resource is defined in Terraform and every change ships through a GitHub Actions pipeline. GitHub signs in to AWS with short-lived OIDC tokens.
 
 | Area | What it uses |
 |---|---|
@@ -37,7 +37,7 @@ AWS:  CloudFront (aws.jakemoore.dev, HTTPS, security headers)
 
 ## Security choices
 
-- **No stored keys.** The deploy role trusts GitHub's OIDC provider, and only for this repository, matched by GitHub's immutable owner and repo IDs so a renamed or recreated repo cannot assume it.
+- **OIDC sign-in.** The deploy role trusts GitHub's OIDC provider, and only for this repository, matched by GitHub's immutable owner and repo IDs so a renamed or recreated repo cannot assume it.
 - **Least privilege.** The deploy role is limited to resources named for this project. It has no IAM write access at all, so it cannot change its own permissions.
 - **Nothing public except through CloudFront.** S3 blocks all public access; a bucket policy lets only this distribution read it.
 - **Headers.** Strict CSP (no inline scripts or styles), HSTS, `X-Frame-Options: DENY`, Referrer-Policy, Permissions-Policy.
@@ -65,7 +65,7 @@ You need an AWS account, a GitHub account, a domain whose DNS you control, and T
    ```
    Keep the local `terraform.tfstate` it creates; it is the record of these resources.
 5. **Point the project at your domain.** Set `domain_name` in `infra/variables.tf`.
-6. **Add the repo settings** (Settings, Secrets and variables, Actions): secret `AWS_ROLE_ARN`, variables `TF_STATE_BUCKET` and `AWS_REGION` (the bootstrap outputs). The role ARN is a secret only so logs never print the account number.
+6. **Add the repo settings** (Settings, Secrets and variables, Actions): secret `AWS_ROLE_ARN`, variables `TF_STATE_BUCKET` and `AWS_REGION` (the bootstrap outputs).
 7. **Push to `main`.** The pipeline requests the certificate and waits for DNS validation. While it waits, add two CNAME records at your DNS provider:
    - the validation record: `aws acm describe-certificate --region us-east-1 --certificate-arn <arn>` shows its name and value
    - your subdomain pointing to the CloudFront domain (the `cloudfront_domain` output)

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AWS Infrastructure as Code | Jake Moore</title>
-  <meta name="description" content="A website on AWS where every resource is defined in Terraform and every change ships through a GitHub Actions pipeline with no stored cloud keys. Built by Jake Moore.">
+  <meta name="description" content="A website on AWS where every resource is defined in Terraform and every change ships through a GitHub Actions pipeline. Built by Jake Moore.">
   <meta name="color-scheme" content="light">
   <link rel="stylesheet" href="styles.css">
   <script src="app.js" defer></script>
@@ -14,18 +14,18 @@
   <header class="hero">
     <div class="wrap">
       <h1>AWS Infrastructure as Code</h1>
-      <p class="lede">A website on AWS where every resource is written in Terraform and every change ships through a GitHub Actions pipeline, with no cloud keys stored anywhere.</p>
-      <p class="byline"><a href="https://jakemoore.dev/portfolio.html">Jake Moore</a> &middot; Management Information Systems, University of Arizona &middot; <a href="https://github.com/Jahe-moore/aws-iac-portfolio" rel="noopener">Repository on GitHub</a> &middot; <span id="last-deploy">Live</span></p>
+      <p class="lede">A website on AWS where every resource is written in Terraform and every change ships through a GitHub Actions pipeline.</p>
+      <p class="byline"><a href="https://jakemoore.dev/portfolio.html">Jake Moore</a> &middot; Management Information Systems, University of Arizona &middot; <a href="https://github.com/Jahe-moore/aws-iac-portfolio" rel="noopener">Repository on GitHub</a></p>
     </div>
   </header>
 
   <nav class="tabbar" aria-label="Sections">
     <div class="wrap">
       <div class="tabs" role="tablist" aria-label="Sections">
-        <button type="button" role="tab" id="tab-project" aria-controls="project" aria-selected="true"><span class="tab-t">Project</span><span class="tab-s">What it is, how it fits together, cost</span></button>
-        <button type="button" role="tab" id="tab-terraform" aria-controls="terraform" aria-selected="false" tabindex="-1"><span class="tab-t">Terraform</span><span class="tab-s">The key code, explained</span></button>
-        <button type="button" role="tab" id="tab-pipeline" aria-controls="pipeline" aria-selected="false" tabindex="-1"><span class="tab-t">Pipeline</span><span class="tab-s">How a commit becomes a deploy</span></button>
-        <button type="button" role="tab" id="tab-source" aria-controls="source" aria-selected="false" tabindex="-1"><span class="tab-t">Source</span><span class="tab-s">Every file in the repository</span></button>
+        <button type="button" role="tab" id="tab-project" aria-controls="project" aria-selected="true"><span class="tab-t">Project</span></button>
+        <button type="button" role="tab" id="tab-terraform" aria-controls="terraform" aria-selected="false" tabindex="-1"><span class="tab-t">Terraform</span></button>
+        <button type="button" role="tab" id="tab-pipeline" aria-controls="pipeline" aria-selected="false" tabindex="-1"><span class="tab-t">Pipeline</span></button>
+        <button type="button" role="tab" id="tab-source" aria-controls="source" aria-selected="false" tabindex="-1"><span class="tab-t">Source</span></button>
       </div>
     </div>
   </nav>
@@ -36,14 +36,13 @@
       <div class="lead-grid">
         <div>
           <h2>The project</h2>
-          <p>Setting up cloud resources by clicking through the AWS console is hard to repeat, leaves no record of who changed what, and usually means long-lived access keys sitting on someone's laptop or in a CI system.</p>
-          <p>This project does it the way enterprise teams do: the whole stack is Terraform code in one repository. A push to <code>main</code> runs a pipeline that scans the code, logs in to AWS with a short-lived token, shows the planned change, and applies it. The repository is the documentation, the change history and the disaster-recovery plan.</p>
+          <p>The whole stack is Terraform code in one repository. A push to <code>main</code> runs a pipeline that scans the code, signs in to AWS with a short-lived OIDC token, plans the change and applies it.</p>
         </div>
         <ol class="ship">
           <li><b>Commit</b><span>Change a <code>.tf</code> file or the site and push.</span></li>
           <li><b>Scan</b><span>Checkov checks the Terraform; any failed check stops the run.</span></li>
           <li><b>Plan</b><span>GitHub logs in through OIDC; Terraform shows exactly what will change.</span></li>
-          <li><b>Apply</b><span>On <code>main</code> only, Terraform applies the plan and the site files upload. About 2 minutes end to end.</span></li>
+          <li><b>Apply</b><span>On <code>main</code> only, Terraform applies the plan and the site files upload.</span></li>
         </ol>
       </div>
 
@@ -64,7 +63,7 @@
             <g class="d-key"><rect x="260" y="20" width="190" height="56" rx="6"/>
               <text x="355" y="44" class="d-t">GitHub Actions</text><text x="355" y="62" class="d-s">scan, validate, plan</text></g>
             <g class="d-key"><rect x="500" y="20" width="190" height="56" rx="6"/>
-              <text x="595" y="44" class="d-t">OIDC login</text><text x="595" y="62" class="d-s">short-lived token, no stored keys</text></g>
+              <text x="595" y="44" class="d-t">OIDC login</text><text x="595" y="62" class="d-s">short-lived token</text></g>
             <g class="d-key"><rect x="740" y="20" width="190" height="56" rx="6"/>
               <text x="835" y="44" class="d-t">Terraform</text><text x="835" y="62" class="d-s">plan, then apply</text></g>
             <line x1="210" y1="48" x2="256" y2="48" class="d-arrow" marker-end="url(#arrow)"/>
@@ -99,7 +98,6 @@
             <line x1="390" y1="318" x2="390" y2="218" class="d-arrow" marker-end="url(#arrow)"/>
           </svg>
         </div>
-        <figcaption>Pipeline across the top; everything inside the AWS account is created and updated by Terraform.</figcaption>
       </figure>
 
       <h3>Stack and cost</h3>
@@ -107,7 +105,7 @@
             <thead><tr><th scope="col">Layer</th><th scope="col">AWS service</th><th scope="col">What it does</th><th scope="col" class="num">Monthly cost</th></tr></thead>
             <tbody>
               <tr><th scope="row" data-label="Layer">Delivery</th><td data-label="Service">GitHub Actions + Terraform, state in S3</td><td data-label="What it does">Tests and applies every change from code</td><td class="num" data-label="Cost">$0</td></tr>
-              <tr><th scope="row" data-label="Layer">Identity</th><td data-label="Service">IAM + OIDC</td><td data-label="What it does">Gives the pipeline a short-lived login, no stored keys</td><td class="num" data-label="Cost">$0</td></tr>
+              <tr><th scope="row" data-label="Layer">Identity</th><td data-label="Service">IAM + OIDC</td><td data-label="What it does">Gives the pipeline a short-lived login</td><td class="num" data-label="Cost">$0</td></tr>
               <tr><th scope="row" data-label="Layer">Hosting</th><td data-label="Service">S3 + CloudFront + ACM certificate</td><td data-label="What it does">Stores the files, serves them worldwide over HTTPS</td><td class="num" data-label="Cost">~$0 <span class="cost-note">free tier, 1 TB</span></td></tr>
               <tr><th scope="row" data-label="Layer">DNS</th><td data-label="Service">CNAME at existing registrar</td><td data-label="What it does">Points aws.jakemoore.dev at CloudFront</td><td class="num" data-label="Cost">$0</td></tr>
             </tbody>
@@ -117,7 +115,7 @@
 
     <section role="tabpanel" id="terraform" aria-labelledby="tab-terraform" tabindex="0" hidden>
       <h2>The Terraform</h2>
-      <p class="intro">Two Terraform stacks. <code>bootstrap/</code> runs once from my machine and creates what the pipeline needs to log in. <code>infra/</code> is everything else, applied by the pipeline on every push. Each excerpt below is read from the live repository files.</p>
+      <p class="intro">Two Terraform stacks. <code>bootstrap/</code> runs once from my machine and creates what the pipeline needs to log in. <code>infra/</code> is everything else, applied by the pipeline on every push.</p>
       <div class="excerpts" id="tf-excerpts"></div>
     </section>
 

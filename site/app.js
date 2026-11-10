@@ -135,7 +135,7 @@
   }
 
   renderExcerpts("tf-excerpts", [
-    { title: "No stored keys: GitHub signs in with OIDC",
+    { title: "GitHub signs in with OIDC",
       why: "AWS trusts GitHub's identity service instead of an access key. Only workflows from this repository, matched by its permanent account and repo IDs, can assume the deploy role, and each login lasts about an hour.",
       file: "bootstrap/main.tf", marker: 'data "aws_iam_policy_document" "github_trust"' },
     { title: "A deploy role scoped to this project",
@@ -148,7 +148,7 @@
       why: "The S3 bucket blocks all public access. This policy lets one specific CloudFront distribution read the files, so the only way to reach the site is through the CDN over HTTPS.",
       file: "infra/main.tf", marker: 'data "aws_iam_policy_document" "site"' },
     { title: "Custom domain with a free, self-renewing certificate",
-      why: "ACM issues the HTTPS certificate for aws.jakemoore.dev. It is validated through DNS and renews on its own, so there is nothing to remember each year.",
+      why: "ACM issues the HTTPS certificate for aws.jakemoore.dev. It is validated through DNS and renews on its own.",
       file: "infra/main.tf", marker: 'resource "aws_acm_certificate" "site"' },
     { title: "Security headers on every response",
       why: "CloudFront adds a strict Content Security Policy, HSTS and anti-framing headers to every page, so the browser blocks injected scripts, insecure connections and clickjacking.",
@@ -163,7 +163,7 @@
       why: "Checkov checks the Terraform against AWS best-practice rules before anything else runs. A single failed check stops the deploy.",
       file: ".github/workflows/deploy.yml", marker: "- name: Security scan (Checkov)", kind: "yaml", max: 5 },
     { title: "3. Log in to AWS without a key",
-      why: "GitHub hands AWS a signed identity token; AWS returns temporary credentials for the deploy role. The only stored values are the role name and region.",
+      why: "GitHub hands AWS a signed identity token; AWS returns temporary credentials for the deploy role.",
       file: ".github/workflows/deploy.yml", marker: "- name: Log in to AWS with OIDC", kind: "yaml" },
     { title: "4. Plan",
       why: "Terraform compares the code with what exists in AWS and writes the exact list of changes to a plan file.",
@@ -201,14 +201,4 @@
     var li = document.createElement("li"); li.textContent = "File list not available."; list.appendChild(li);
   });
 
-  /* ---------- one live line: when it last deployed ---------- */
-  fetch("status/deploy.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
-    if (!d || !d.deployed_at || !/^https:\/\//.test(d.commit_url || "")) return;
-    var mins = Math.max(0, Math.round((Date.now() - Date.parse(d.deployed_at)) / 60000));
-    var ago = mins < 1 ? "just now" : mins < 60 ? mins + " min ago" : mins < 1440 ? Math.round(mins / 60) + " h ago" : Math.round(mins / 1440) + " d ago";
-    var el = $("last-deploy");
-    el.textContent = "Last deployed " + ago + " from commit ";
-    var a = document.createElement("a"); a.href = d.commit_url; a.rel = "noopener"; a.textContent = String(d.commit).slice(0, 7);
-    el.appendChild(a);
-  }).catch(function () {});
 })();
