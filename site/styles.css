@@ -446,3 +446,6 @@ pre.code { margin: 0; padding: 0.85rem 1rem; background: #F6F8FA; color: #1F2937
   .files { border-right: 0; border-bottom: 1px solid var(--border); max-height: 12rem; overflow-y: auto; }
 }
 .tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.foot-name a { color: inherit; text-decoration: none; }
+.foot-name a:hover { text-decoration: underline; }
