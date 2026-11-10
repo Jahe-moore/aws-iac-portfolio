@@ -6,6 +6,7 @@
 !*.tfvars.example
 crash.log
 tfplan
+infra/build/
 
 # OS / editor
 .DS_Store

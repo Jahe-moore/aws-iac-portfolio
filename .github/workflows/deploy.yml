@@ -18,12 +18,33 @@ concurrency:
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+  TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Security scan (Checkov)
+        run: |
+          pip install --quiet checkov
+          checkov -d . --framework terraform --quiet --compact -o json > checkov.json || true
+          python3 - <<'EOF'
+          import json
+          r = json.load(open("checkov.json"))
+          r = r[0] if isinstance(r, list) else r
+          s = r["summary"]
+          skips = [{"id": c["check_id"], "reason": (c.get("check_result") or {}).get("suppress_comment", "")}
+                   for c in r["results"]["skipped_checks"]]
+          json.dump({"tool": "Checkov", "passed": s["passed"], "failed": s["failed"],
+                     "skipped": s["skipped"], "skips": skips}, open("scan.json", "w"))
+          print(f"passed {s['passed']}, failed {s['failed']}, skipped {s['skipped']}")
+          for c in r["results"]["failed_checks"]:
+              print("FAILED", c["check_id"], c["resource"], c["file_path"])
+          if s["failed"]:
+              raise SystemExit(1)
+          EOF
 
       - name: Log in to AWS with OIDC
         uses: aws-actions/configure-aws-credentials@v5
@@ -59,11 +80,32 @@ jobs:
         working-directory: infra
         run: terraform apply -input=false tfplan
 
-      - name: Publish site files
+      - name: Publish site files and deploy status
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           BUCKET=$(terraform -chdir=infra output -raw site_bucket)
           DIST=$(terraform -chdir=infra output -raw distribution_id)
-          aws s3 sync site/ "s3://$BUCKET" --delete
+          CERT=$(terraform -chdir=infra output -raw certificate_arn)
+          export RESOURCES=$(terraform -chdir=infra state list | grep -vc '^data\.')
+          export CERT_EXPIRES=$(aws acm describe-certificate --region us-east-1 --certificate-arn "$CERT" --query Certificate.NotAfter --output text)
+          python3 - <<'EOF'
+          import json, os, datetime
+          sha = os.environ["GITHUB_SHA"]
+          repo = f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}"
+          json.dump({
+              "deployed_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "commit": sha[:7],
+              "commit_url": f"{repo}/commit/{sha}",
+              "message": os.environ.get("COMMIT_MESSAGE", "").splitlines()[0] if os.environ.get("COMMIT_MESSAGE") else "",
+              "run_url": f"{repo}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              "resources": int(os.environ["RESOURCES"]),
+              "cert_expires": os.environ["CERT_EXPIRES"],
+              "scan": json.load(open("scan.json")),
+          }, open("deploy.json", "w"), indent=2)
+          EOF
+          aws s3 sync site/ "s3://$BUCKET" --delete --exclude "status/*"
+          aws s3 cp deploy.json "s3://$BUCKET/status/deploy.json" --content-type application/json --cache-control no-cache
           aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*"
           echo "Site: $(terraform -chdir=infra output -raw site_url)" >> "$GITHUB_STEP_SUMMARY"

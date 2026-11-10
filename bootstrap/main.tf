@@ -38,6 +38,28 @@ locals {
 
 resource "aws_s3_bucket" "state" {
   bucket = local.state_bucket
+
+  #checkov:skip=CKV_AWS_18:Only the deploy role and the owner touch this bucket; CloudTrail already records API access
+  #checkov:skip=CKV_AWS_144:State can be rebuilt by importing; cross-region replication adds cost for a one-person project
+  #checkov:skip=CKV_AWS_145:Encrypted with S3-managed keys; a KMS key adds $1/month without changing who can read it
+  #checkov:skip=CKV2_AWS_62:Nothing needs to react to state changes
+}
+
+# Keep old state versions for 90 days, then let them expire.
+resource "aws_s3_bucket_lifecycle_configuration" "state" {
+  bucket = aws_s3_bucket.state.id
+
+  rule {
+    id     = "expire-old-state-versions"
+    status = "Enabled"
+    filter {}
+    noncurrent_version_expiration {
+      noncurrent_days = 90
+    }
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 1
+    }
+  }
 }
 
 resource "aws_s3_bucket_versioning" "state" {
@@ -107,6 +129,10 @@ resource "aws_iam_role" "github_actions" {
 }
 
 data "aws_iam_policy_document" "deploy" {
+  #checkov:skip=CKV_AWS_356:CloudFront and ACM create resources whose ARNs do not exist yet, so those two need "*"; every other service is scoped to this project's names
+  #checkov:skip=CKV_AWS_111:Write access is limited to resources named for this project; the remaining "*" covers CloudFront and ACM only
+  #checkov:skip=CKV_AWS_109:IAM changes are limited to roles named iac-portfolio-app-*, which excludes the deploy role itself
+
   statement {
     sid     = "ProjectBucketsOnly"
     actions = ["s3:*"]
@@ -128,6 +154,53 @@ data "aws_iam_policy_document" "deploy" {
     sid       = "Certificates"
     actions   = ["acm:*"]
     resources = ["*"]
+  }
+
+  statement {
+    sid     = "ProjectServerless"
+    actions = ["lambda:*", "dynamodb:*", "events:*", "sns:*"]
+    resources = [
+      "arn:aws:lambda:*:${local.account_id}:function:${var.project}-*",
+      "arn:aws:dynamodb:*:${local.account_id}:table/${var.project}-*",
+      "arn:aws:events:*:${local.account_id}:rule/${var.project}-*",
+      "arn:aws:sns:*:${local.account_id}:${var.project}-*",
+    ]
+  }
+
+  statement {
+    sid     = "ProjectMonitoring"
+    actions = ["cloudwatch:*", "logs:*"]
+    resources = [
+      "arn:aws:cloudwatch:*:${local.account_id}:alarm:${var.project}-*",
+      "arn:aws:logs:*:${local.account_id}:log-group:/aws/lambda/${var.project}-*",
+    ]
+  }
+
+  statement {
+    sid = "ReadOnlyListing"
+    actions = [
+      "cloudwatch:DescribeAlarms",
+      "logs:DescribeLogGroups",
+      "sns:ListTopics",
+      "events:ListRules",
+      "lambda:ListFunctions",
+      "dynamodb:ListTables",
+    ]
+    resources = ["*"]
+  }
+
+  # The pipeline can create roles only under the app- prefix, so it can never
+  # edit its own role (iac-portfolio-github-actions) to gain more access.
+  statement {
+    sid = "AppRolesOnly"
+    actions = [
+      "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:UpdateRole",
+      "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole",
+      "iam:PutRolePolicy", "iam:GetRolePolicy", "iam:DeleteRolePolicy",
+      "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
+      "iam:ListInstanceProfilesForRole", "iam:PassRole",
+    ]
+    resources = ["arn:aws:iam::${local.account_id}:role/${var.project}-app-*"]
   }
 
   statement {

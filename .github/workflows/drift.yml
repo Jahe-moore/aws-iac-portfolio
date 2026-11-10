@@ -1,0 +1,71 @@
+name: drift-check
+
+# Nightly: does AWS still match the code? terraform plan exits 2 when it finds
+# a difference (someone changed something outside Terraform).
+on:
+  schedule:
+    - cron: "0 9 * * *" # 2 AM Arizona time
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+  TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Log in to AWS with OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Init
+        working-directory: infra
+        run: >
+          terraform init -input=false
+          -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+          -backend-config="region=${{ vars.AWS_REGION }}"
+
+      - name: Plan for drift
+        id: plan
+        working-directory: infra
+        run: |
+          set +e
+          terraform plan -input=false -detailed-exitcode -lock=false
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Publish result
+        env:
+          CODE: ${{ steps.plan.outputs.code }}
+        run: |
+          BUCKET=$(terraform -chdir=infra output -raw site_bucket)
+          python3 - <<'EOF'
+          import json, os, datetime
+          code = os.environ["CODE"]
+          repo = f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}"
+          json.dump({
+              "checked_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "drift": code == "2",
+              "error": code not in ("0", "2"),
+              "run_url": f"{repo}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+          }, open("drift.json", "w"))
+          EOF
+          aws s3 cp drift.json "s3://$BUCKET/status/drift.json" --content-type application/json --cache-control no-cache
+          [ "$CODE" = "0" ]

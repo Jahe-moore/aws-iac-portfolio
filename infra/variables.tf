@@ -15,3 +15,9 @@ variable "domain_name" {
   type        = string
   default     = "aws.jakemoore.dev"
 }
+
+variable "alert_email" {
+  description = "Where alarm emails go (set as a GitHub repo variable, kept out of the code)"
+  type        = string
+  default     = ""
+}
