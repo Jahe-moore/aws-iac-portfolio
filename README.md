@@ -12,7 +12,7 @@ A website on AWS where every resource is defined in Terraform and every change s
 | Security | OIDC federation, least-privilege IAM, Origin Access Control on S3 and Lambda, security headers, Checkov scan as a pipeline gate |
 | Delivery | Terraform with remote state in S3 (versioned, encrypted, locked), GitHub Actions |
 
-Running cost is about $0/month: every service used stays inside the AWS free tier at portfolio traffic.
+Running cost is about $0.10/month: everything stays inside the AWS free tier except a few cents of CloudWatch metric reads.
 
 ## How it works
 

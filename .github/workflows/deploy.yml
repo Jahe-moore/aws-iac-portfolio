@@ -116,6 +116,10 @@ jobs:
                             for a in open("inventory.txt").read().split()],
           }, open("deploy.json", "w"), indent=2)
           EOF
+          # Publish the repository files so the page can show its own source.
+          git ls-files | grep -v '^site/' > files.txt
+          while read -r f; do mkdir -p "site/source/$(dirname "$f")"; cp "$f" "site/source/$f"; done < files.txt
+          python3 -c "import json; order = ['README.md', 'infra/', 'bootstrap/', '.github/']; files = open('files.txt').read().split(); key = lambda f: (next((i for i, p in enumerate(order) if f.startswith(p)), len(order)), f); json.dump(sorted(files, key=key), open('site/source/manifest.json', 'w'))"
           aws s3 sync site/ "s3://$BUCKET" --delete --exclude "status/*"
           aws s3 cp deploy.json "s3://$BUCKET/status/deploy.json" --content-type application/json --cache-control no-cache
           aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*"

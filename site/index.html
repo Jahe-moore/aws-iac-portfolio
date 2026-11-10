@@ -4,111 +4,50 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AWS Infrastructure as Code | Jake Moore</title>
-  <meta name="description" content="A static site on AWS with every resource defined in Terraform and deployed by GitHub Actions. Built by Jake Moore, MIS, University of Arizona Eller College.">
+  <meta name="description" content="A website on AWS where every resource is defined in Terraform and every change ships through a GitHub Actions pipeline with no stored cloud keys. Built by Jake Moore.">
   <meta name="color-scheme" content="light">
   <link rel="stylesheet" href="styles.css">
   <script src="app.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
-
   <header class="hero">
     <div class="wrap">
-      <h1>Infrastructure as code, running live</h1>
-      <p class="lede">A production-style website on AWS, built and changed only through code, for about ten cents a month.</p>
-      <p class="byline">Jake Moore &middot; Management Information Systems, Eller College of Management, University of Arizona &middot; graduating May 2027 &middot; <a href="https://github.com/Jahe-moore/aws-iac-portfolio" rel="noopener">Source on GitHub</a></p>
+      <h1>AWS Infrastructure as Code</h1>
+      <p class="lede">A website on AWS where every resource is written in Terraform and every change ships through a GitHub Actions pipeline, with no cloud keys stored anywhere.</p>
+      <p class="byline">Jake Moore &middot; Management Information Systems, University of Arizona &middot; <a href="https://github.com/Jahe-moore/aws-iac-portfolio" rel="noopener">Repository on GitHub</a> &middot; <span id="last-deploy">Live</span></p>
     </div>
   </header>
 
-
   <nav class="tabbar" aria-label="Sections">
     <div class="wrap">
-      <div class="tabs" role="tablist" aria-label="Portfolio sections">
-        <button type="button" role="tab" id="tab-summary" aria-controls="summary" aria-selected="true"><span class="tab-t">Summary</span><span class="tab-s">Results, stack and cost</span></button>
-        <button type="button" role="tab" id="tab-overview" aria-controls="overview" aria-selected="false" tabindex="-1"><span class="tab-t">Overview</span><span class="tab-s">Architecture, how it was built, every resource</span></button>
-        <button type="button" role="tab" id="tab-live" aria-controls="live" aria-selected="false" tabindex="-1"><span class="tab-t">Live</span><span class="tab-s">This visit traced through AWS, traffic by country</span></button>
-        <button type="button" role="tab" id="tab-security" aria-controls="security" aria-selected="false" tabindex="-1"><span class="tab-t">Security</span><span class="tab-s">Controls, scan results, live header check</span></button>
-        <button type="button" role="tab" id="tab-operations" aria-controls="operations" aria-selected="false" tabindex="-1"><span class="tab-t">Operations</span><span class="tab-s">Uptime, API performance, alerts, drift check</span></button>
+      <div class="tabs" role="tablist" aria-label="Sections">
+        <button type="button" role="tab" id="tab-project" aria-controls="project" aria-selected="true"><span class="tab-t">Project</span><span class="tab-s">What it is, how it fits together, cost</span></button>
+        <button type="button" role="tab" id="tab-terraform" aria-controls="terraform" aria-selected="false" tabindex="-1"><span class="tab-t">Terraform</span><span class="tab-s">The key code, explained</span></button>
+        <button type="button" role="tab" id="tab-pipeline" aria-controls="pipeline" aria-selected="false" tabindex="-1"><span class="tab-t">Pipeline</span><span class="tab-s">How a commit becomes a deploy</span></button>
+        <button type="button" role="tab" id="tab-source" aria-controls="source" aria-selected="false" tabindex="-1"><span class="tab-t">Source</span><span class="tab-s">Every file in the repository</span></button>
       </div>
     </div>
   </nav>
 
   <main id="main" class="wrap">
 
-    <!-- ============ SUMMARY ============ -->
-    <section role="tabpanel" id="summary" aria-labelledby="tab-summary" tabindex="0" class="results">
-
-      <h2 id="results-h" class="sr-only">Results</h2>
-      <div class="tiles">
-        <div class="tile">
-          <span class="tile-k">Monthly cost</span>
-          <span class="tile-v">~$0.10</span>
-          <span class="tile-s">Free tier; $10 alert</span>
+    <section role="tabpanel" id="project" aria-labelledby="tab-project" tabindex="0">
+      <div class="lead-grid">
+        <div>
+          <h2>The project</h2>
+          <p>Setting up cloud resources by clicking through the AWS console is hard to repeat, leaves no record of who changed what, and usually means long-lived access keys sitting on someone's laptop or in a CI system.</p>
+          <p>This project does it the way enterprise teams do: the whole stack is Terraform code in one repository. A push to <code>main</code> runs a pipeline that scans the code, logs in to AWS with a short-lived token, shows the planned change, and applies it. The repository is the documentation, the change history and the disaster-recovery plan.</p>
         </div>
-        <div class="tile">
-          <span class="tile-k">Push to live</span>
-          <span class="tile-v">~2 min</span>
-          <span class="tile-s">Via the pipeline</span>
-        </div>
-        <div class="tile">
-          <span class="tile-k">Uptime</span>
-          <span class="tile-v pending" id="r-uptime">Not available yet</span>
-          <span class="tile-s">Checked every 30 min</span>
-        </div>
-        <div class="tile">
-          <span class="tile-k">Scan passed / failed</span>
-          <span class="tile-v pending" id="r-scan">Not available yet</span>
-          <span class="tile-s">Any failure blocks deploy</span>
-        </div>
-        <div class="tile">
-          <span class="tile-k">Stored cloud keys</span>
-          <span class="tile-v">0</span>
-          <span class="tile-s">Short-lived OIDC tokens</span>
-        </div>
-        <div class="tile">
-          <span class="tile-k">Manual changes</span>
-          <span class="tile-v pending" id="r-drift">Not available yet</span>
-          <span class="tile-s">AWS matches the code</span>
-        </div>
+        <ol class="ship">
+          <li><b>Commit</b><span>Change a <code>.tf</code> file or the site and push.</span></li>
+          <li><b>Scan</b><span>Checkov checks the Terraform; any failed check stops the run.</span></li>
+          <li><b>Plan</b><span>GitHub logs in through OIDC; Terraform shows exactly what will change.</span></li>
+          <li><b>Apply</b><span>On <code>main</code> only, Terraform applies the plan and the site files upload. About 2 minutes end to end.</span></li>
+        </ol>
       </div>
 
-      <div class="top-split">
-        <div>
-          <h2 class="top-h">Stack and cost</h2>
-          <table class="table stack">
-            <thead><tr><th scope="col">Layer</th><th scope="col">AWS service</th><th scope="col">What it does</th><th scope="col" class="num">Monthly cost</th></tr></thead>
-            <tbody>
-              <tr><th scope="row" data-label="Layer">Delivery</th><td data-label="Service">GitHub Actions + Terraform, state in S3</td><td data-label="What it does">Tests and applies every change from code</td><td class="num" data-label="Cost">$0</td></tr>
-              <tr><th scope="row" data-label="Layer">Identity</th><td data-label="Service">IAM + OIDC</td><td data-label="What it does">Gives the pipeline a short-lived login, no stored keys</td><td class="num" data-label="Cost">$0</td></tr>
-              <tr><th scope="row" data-label="Layer">Hosting</th><td data-label="Service">S3 + CloudFront + ACM certificate</td><td data-label="What it does">Stores the files, serves them worldwide over HTTPS</td><td class="num" data-label="Cost">~$0 <span class="cost-note">free tier, 1 TB</span></td></tr>
-              <tr><th scope="row" data-label="Layer">API</th><td data-label="Service">Lambda (Python)</td><td data-label="What it does">Runs code on request, no server to manage</td><td class="num" data-label="Cost">$0 <span class="cost-note">1M requests free</span></td></tr>
-              <tr><th scope="row" data-label="Layer">Data</th><td data-label="Service">DynamoDB on-demand</td><td data-label="What it does">Database for the visitor counter and uptime history</td><td class="num" data-label="Cost">$0</td></tr>
-              <tr><th scope="row" data-label="Layer">Scheduling</th><td data-label="Service">EventBridge</td><td data-label="What it does">Runs the uptime check every 30 minutes</td><td class="num" data-label="Cost">$0</td></tr>
-              <tr><th scope="row" data-label="Layer">Monitoring</th><td data-label="Service">CloudWatch alarms + metrics</td><td data-label="What it does">Tracks response times and errors, raises alarms</td><td class="num" data-label="Cost">~$0.06 <span class="cost-note">metric reads</span></td></tr>
-              <tr><th scope="row" data-label="Layer">Alerts</th><td data-label="Service">SNS email</td><td data-label="What it does">Emails me when an alarm fires</td><td class="num" data-label="Cost">$0</td></tr>
-              <tr><th scope="row" data-label="Layer">DNS</th><td data-label="Service">CNAME at existing registrar</td><td data-label="What it does">Points aws.jakemoore.dev at CloudFront</td><td class="num" data-label="Cost">$0</td></tr>
-            </tbody>
-            <tfoot><tr><th scope="row" colspan="3">Total, with a $10/month budget alert</th><td class="num">~$0.10/month</td></tr></tfoot>
-          </table>
-        </div>
-        <div>
-          <h2 class="top-h">What this demonstrates</h2>
-          <ul class="proof">
-            <li><h3>Cost control</h3><p>Production patterns for about ten cents a month, with a budget guardrail.</p><a href="#overview" data-tab="overview">See Overview</a></li>
-            <li><h3>Security by default</h3><p>No stored keys, least-privilege roles, private storage, strict headers, and a security scan that gates every build.</p><a href="#security" data-tab="security">See Security</a></li>
-            <li><h3>Change control and audit trail</h3><p>Every change is a reviewed commit, then plan, then apply. Nothing changed by hand; a nightly drift check proves it.</p><a href="#operations" data-tab="operations">See Operations</a></li>
-            <li><h3>Reliability and monitoring</h3><p>Uptime checks, performance metrics and email alarms.</p><a href="#operations" data-tab="operations">See Operations</a></li>
-            <li><h3>Rebuildable</h3><p>The whole stack can be recreated from the repository with one command. That is the disaster-recovery plan.</p><a href="#overview" data-tab="overview">See Overview</a></li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ OVERVIEW ============ -->
-    <section role="tabpanel" id="overview" aria-labelledby="tab-overview" tabindex="0" hidden>
-      <h2>How I built this</h2>
-      <p class="intro">A git push is the only way this site changes: GitHub Actions logs in to AWS with a short-lived token, Terraform plans and applies the infrastructure, and the pipeline publishes the files.</p>
-
+      <h3>Architecture</h3>
       <figure class="diagram">
         <div class="diagram-scroll">
           <svg viewBox="0 0 960 400" role="img" aria-labelledby="dia-title dia-desc" class="arch">
@@ -194,267 +133,44 @@
         <figcaption>Pipeline across the top; everything inside the AWS account is created and updated by Terraform.</figcaption>
       </figure>
 
-      <h3>Build sequence</h3>
-      <ol class="steps">
-        <li>
-          <span class="step-n">1</span>
-          <h4>Bootstrap</h4>
-          <p class="step-tag">Run once from my PC</p>
-          <p>Terraform creates an encrypted, versioned S3 bucket for Terraform state, a GitHub OIDC identity provider, and a deploy role GitHub Actions can assume. The role trusts only this repository, identified by GitHub's permanent numeric owner and repo IDs, so a renamed or recreated repo cannot use it.</p>
-        </li>
-        <li>
-          <span class="step-n">2</span>
-          <h4>Pipeline</h4>
-          <p class="step-tag">Every push</p>
-          <p>Format check, validate, security scan and plan run on every push. Pushes to main also apply and publish. Pull requests stop at plan, so a proposed change is reviewed before it touches AWS.</p>
-        </li>
-        <li>
-          <span class="step-n">3</span>
-          <h4>Hosting</h4>
-          <p class="step-tag">S3 + CloudFront + ACM</p>
-          <p>A private S3 bucket readable only by CloudFront through Origin Access Control. HTTPS enforced. A free ACM certificate for aws.jakemoore.dev, validated by DNS and renewing automatically.</p>
-        </li>
-        <li>
-          <span class="step-n">4</span>
-          <h4>Serverless</h4>
-          <p class="step-tag">Lambda + DynamoDB</p>
-          <p>A Python Lambda function sits behind CloudFront at /api. A DynamoDB table holds the visitor counter and the uptime history.</p>
-        </li>
-        <li>
-          <span class="step-n">5</span>
-          <h4>Operations</h4>
-          <p class="step-tag">EventBridge + CloudWatch + SNS</p>
-          <p>EventBridge runs the uptime check every 30 minutes. CloudWatch alarms send email through SNS. A nightly job checks for drift.</p>
-        </li>
-      </ol>
-
-      <h3 id="inventory">Infrastructure inventory</h3>
-      <p class="note" id="inv-note">Every resource Terraform manages in the live deployment, grouped by AWS service.</p>
-      <div class="inv" id="inv-grid"><p class="muted">Not available yet</p></div>
-
-      <h3>Terms used on this page</h3>
-      <dl class="glossary glossary-wide">
-        <div><dt>Terraform</dt><dd>Code that declares cloud resources; it computes and applies the difference.</dd></div>
-        <div><dt>OIDC</dt><dd>A sign-in standard that lets GitHub prove its identity to AWS without a password.</dd></div>
-        <div><dt>S3</dt><dd>File storage; holds the site's HTML, CSS and JavaScript.</dd></div>
-        <div><dt>CloudFront</dt><dd>Content delivery network; serves the site over HTTPS from edge locations.</dd></div>
-        <div><dt>ACM</dt><dd>Certificate Manager; issues and renews the TLS certificate.</dd></div>
-        <div><dt>Lambda</dt><dd>Runs a function on request, with no server to manage.</dd></div>
-        <div><dt>DynamoDB</dt><dd>Serverless key-value database.</dd></div>
-        <div><dt>EventBridge</dt><dd>Scheduler that triggers a function on a timer.</dd></div>
-        <div><dt>CloudWatch</dt><dd>Metrics, logs and alarms.</dd></div>
-        <div><dt>SNS</dt><dd>Notification service; delivers alarm emails.</dd></div>
-      </dl>
+      <h3>Stack and cost</h3>
+          <table class="table stack">
+            <thead><tr><th scope="col">Layer</th><th scope="col">AWS service</th><th scope="col">What it does</th><th scope="col" class="num">Monthly cost</th></tr></thead>
+            <tbody>
+              <tr><th scope="row" data-label="Layer">Delivery</th><td data-label="Service">GitHub Actions + Terraform, state in S3</td><td data-label="What it does">Tests and applies every change from code</td><td class="num" data-label="Cost">$0</td></tr>
+              <tr><th scope="row" data-label="Layer">Identity</th><td data-label="Service">IAM + OIDC</td><td data-label="What it does">Gives the pipeline a short-lived login, no stored keys</td><td class="num" data-label="Cost">$0</td></tr>
+              <tr><th scope="row" data-label="Layer">Hosting</th><td data-label="Service">S3 + CloudFront + ACM certificate</td><td data-label="What it does">Stores the files, serves them worldwide over HTTPS</td><td class="num" data-label="Cost">~$0 <span class="cost-note">free tier, 1 TB</span></td></tr>
+              <tr><th scope="row" data-label="Layer">API</th><td data-label="Service">Lambda (Python)</td><td data-label="What it does">Runs code on request, no server to manage</td><td class="num" data-label="Cost">$0 <span class="cost-note">1M requests free</span></td></tr>
+              <tr><th scope="row" data-label="Layer">Data</th><td data-label="Service">DynamoDB on-demand</td><td data-label="What it does">Database for the visitor counter and uptime history</td><td class="num" data-label="Cost">$0</td></tr>
+              <tr><th scope="row" data-label="Layer">Scheduling</th><td data-label="Service">EventBridge</td><td data-label="What it does">Runs the uptime check every 30 minutes</td><td class="num" data-label="Cost">$0</td></tr>
+              <tr><th scope="row" data-label="Layer">Monitoring</th><td data-label="Service">CloudWatch alarms + metrics</td><td data-label="What it does">Tracks response times and errors, raises alarms</td><td class="num" data-label="Cost">~$0.06 <span class="cost-note">metric reads</span></td></tr>
+              <tr><th scope="row" data-label="Layer">Alerts</th><td data-label="Service">SNS email</td><td data-label="What it does">Emails me when an alarm fires</td><td class="num" data-label="Cost">$0</td></tr>
+              <tr><th scope="row" data-label="Layer">DNS</th><td data-label="Service">CNAME at existing registrar</td><td data-label="What it does">Points aws.jakemoore.dev at CloudFront</td><td class="num" data-label="Cost">$0</td></tr>
+            </tbody>
+            <tfoot><tr><th scope="row" colspan="3">Total, with a $10/month budget alert</th><td class="num">~$0.10/month</td></tr></tfoot>
+          </table>
     </section>
 
-    <!-- ============ LIVE ============ -->
-    <section role="tabpanel" id="live" aria-labelledby="tab-live" tabindex="0" hidden>
-      <h2>Live</h2>
-
-      <p class="intro">Everything on this tab is read from AWS when the page loads.</p>
-  <section class="strip strip-in" aria-label="Latest deployment">
-    <div class="wrap strip-grid">
-      <div class="cell">
-        <span class="k">Last deploy</span>
-        <span class="v" id="s-deploy" data-empty>Not available yet</span>
-      </div>
-      <div class="cell cell-wide">
-        <span class="k">Commit</span>
-        <span class="v" id="s-commit" data-empty>Not available yet</span>
-      </div>
-      <div class="cell">
-        <span class="k">Pipeline run</span>
-        <span class="v" id="s-run" data-empty>Not available yet</span>
-      </div>
-      <div class="cell">
-        <span class="k">Terraform resources</span>
-        <span class="v" id="s-resources" data-empty>Not available yet</span>
-      </div>
-      <div class="cell">
-        <span class="k">Site status</span>
-        <span class="v" id="s-status" data-empty>Not available yet</span>
-      </div>
-      <div class="cell">
-        <span class="k">Visitors</span>
-        <span class="v" id="s-visitors" data-empty>Not available yet</span>
-      </div>
-    </div>
-  </section>
-
-      <article class="card trace">
-        <div class="card-head">
-          <h3>Your request, traced</h3>
-          <p class="note">The path this page load took through AWS a moment ago.</p>
-        </div>
-        <dl class="trace-grid">
-          <div><dt>Edge location</dt><dd id="t-edge" class="muted">Not available yet</dd></div>
-          <div><dt>Edge cache</dt><dd id="t-cache" class="muted">Not available yet</dd></div>
-          <div><dt>Your country</dt><dd id="t-country" class="muted">Not available yet</dd></div>
-          <div><dt>TLS</dt><dd id="t-tls" class="muted">Not available yet</dd></div>
-          <div><dt>HTTP</dt><dd id="t-http" class="muted">Not available yet</dd></div>
-          <div><dt>Lambda duration</dt><dd id="t-dur" class="muted">Not available yet</dd></div>
-          <div><dt>Start</dt><dd id="t-start" class="muted">Not available yet</dd></div>
-          <div><dt>Request ID</dt><dd id="t-rid" class="muted">Not available yet</dd></div>
-        </dl>
-        <div class="trace-notes">
-          <p class="note">CloudFront answers from the edge location nearest you and forwards /api requests to the Lambda function. A cold start is the first request after the function has sat idle: AWS loads the code into a fresh environment, which adds a short delay. A warm start reuses an environment that is already running.</p>
-          <p class="note"><strong>Nothing about you is stored except a +1 for your country.</strong></p>
-        </div>
-      </article>
-
-      <div class="grid-2">
-        <article class="card">
-          <h3>Visitor counter</h3>
-          <div class="stats">
-            <div class="stat"><span class="stat-v" id="l-total">--</span><span class="stat-k">Total visits</span></div>
-            <div class="stat"><span class="stat-v" id="l-today">--</span><span class="stat-k">Today (UTC)</span></div>
-          </div>
-          <p class="note" id="l-visit-note">A Python Lambda function increments the count in DynamoDB with an atomic update, so two visitors arriving at the same moment are both counted.</p>
-        </article>
-
-        <article class="card">
-          <h3>Where visitors come from</h3>
-          <ol class="hbars" id="l-countries"><li class="muted">Not available yet</li></ol>
-          <p class="note">Top 10 countries by visits, from the country CloudFront attaches to each request.</p>
-        </article>
-      </div>
-
-      <div class="grid-2">
-        <article class="card">
-          <h3>Current deployment</h3>
-          <dl class="kv" id="l-deploy">
-            <div><dt>Deployed</dt><dd id="l-time" class="muted">Not available yet</dd></div>
-            <div><dt>Commit</dt><dd id="l-commit" class="muted">Not available yet</dd></div>
-            <div><dt>Message</dt><dd id="l-message" class="muted">Not available yet</dd></div>
-            <div><dt>Pipeline run</dt><dd id="l-run" class="muted">Not available yet</dd></div>
-            <div><dt>Resources</dt><dd id="l-resources" class="muted">Not available yet</dd></div>
-            <div><dt>Certificate</dt><dd id="l-cert" class="muted">Not available yet</dd></div>
-          </dl>
-        </article>
-
-        <article class="card">
-          <h3>How this updates</h3>
-          <ol class="flow flow-tight">
-          <li>A push to main runs the pipeline.</li>
-          <li>Terraform applies the change and counts the resources it manages.</li>
-          <li>The pipeline writes <code>/status/deploy.json</code> with the commit, run and scan results.</li>
-          <li>This page reads that file, so the figures above always describe the build that is live.</li>
-          </ol>
-        </article>
-      </div>
+    <section role="tabpanel" id="terraform" aria-labelledby="tab-terraform" tabindex="0" hidden>
+      <h2>The Terraform</h2>
+      <p class="intro">Two Terraform stacks. <code>bootstrap/</code> runs once from my machine and creates what the pipeline needs to log in. <code>infra/</code> is everything else, applied by the pipeline on every push. Each excerpt below is read from the live repository files.</p>
+      <div class="excerpts" id="tf-excerpts"></div>
     </section>
 
-    <!-- ============ SECURITY ============ -->
-    <section role="tabpanel" id="security" aria-labelledby="tab-security" tabindex="0" hidden>
-      <h2>Security</h2>
-      <p class="intro">Each control is defined in the Terraform code and checked on every push.</p>
-
-      <table class="table controls">
-        <thead><tr><th scope="col">Control</th><th scope="col">How</th><th scope="col">Where in AWS</th></tr></thead>
-        <tbody>
-          <tr><th scope="row" data-label="Control">No stored cloud keys</th><td data-label="How">GitHub Actions receives a short-lived token through OIDC for each run. No access key exists to leak.</td><td data-label="Where">IAM OIDC identity provider</td></tr>
-          <tr><th scope="row" data-label="Control">Least-privilege deploy role</th><td data-label="How">Scoped by name to this project's buckets, function and table. It can create only roles prefixed <code>iac-portfolio-app-</code>, so it cannot raise its own permissions.</td><td data-label="Where">IAM role and policy</td></tr>
-          <tr><th scope="row" data-label="Control">Private storage</th><td data-label="How">S3 public access fully blocked. Only this CloudFront distribution can read the bucket.</td><td data-label="Where">S3 bucket policy, CloudFront Origin Access Control</td></tr>
-          <tr><th scope="row" data-label="Control">HTTPS only</th><td data-label="How">HTTP redirects to HTTPS. TLS 1.2 or higher. HSTS tells browsers to use HTTPS every time.</td><td data-label="Where">CloudFront viewer policy, ACM</td></tr>
-          <tr><th scope="row" data-label="Control">Security headers</th><td data-label="How">Content-Security-Policy, HSTS, X-Content-Type-Options, X-Frame-Options DENY, Referrer-Policy and Permissions-Policy on every response.</td><td data-label="Where">CloudFront response headers policy</td></tr>
-          <tr><th scope="row" data-label="Control">Encrypted state</th><td data-label="How">Terraform state is versioned and encrypted, with state locking so two runs cannot write at once.</td><td data-label="Where">S3 state bucket</td></tr>
-          <tr><th scope="row" data-label="Control">Lambda permissions</th><td data-label="How">The function's role can read and write its one DynamoDB table and write its own logs. Nothing else.</td><td data-label="Where">IAM execution role</td></tr>
-          <tr><th scope="row" data-label="Control">Automated IaC scan</th><td data-label="How">Checkov scans the Terraform on every push. <span id="sec-scan-inline" class="muted">Latest results not available yet.</span></td><td data-label="Where">GitHub Actions</td></tr>
-          <tr><th scope="row" data-label="Control">Budget guardrail</th><td data-label="How">Email alerts at 85% and 100% of $10 actual monthly spend, and when the month is forecast to pass $10.</td><td data-label="Where">AWS Budgets</td></tr>
-        </tbody>
-      </table>
-
-      <article class="card band">
-        <div class="card-head">
-          <h3>Live header check</h3>
-          <p class="note">Read live from this page's own response.</p>
-        </div>
-        <table class="table hdrs">
-          <thead><tr><th scope="col">Header</th><th scope="col">Status</th><th scope="col">Value</th></tr></thead>
-          <tbody id="hdr-rows"><tr><td colspan="3" class="muted">Not available yet</td></tr></tbody>
-        </table>
-      </article>
-
-      <div class="grid-2">
-        <article class="card">
-          <h3>Latest security scan</h3>
-          <div class="stats stats-3">
-            <div class="stat"><span class="stat-v ok" id="sec-passed">--</span><span class="stat-k">Passed</span></div>
-            <div class="stat"><span class="stat-v" id="sec-failed">--</span><span class="stat-k">Failed</span></div>
-            <div class="stat"><span class="stat-v" id="sec-skipped">--</span><span class="stat-k">Skipped</span></div>
-          </div>
-          <p class="note" id="sec-tool">Checkov tests the Terraform against AWS best-practice rules before anything is applied.</p>
-        </article>
-        <article class="card">
-          <h3>Accepted risks</h3>
-          <p class="note">Checks skipped on purpose, each with its reason recorded in the code.</p>
-          <ul class="risks" id="sec-skips"><li class="muted">Not available yet</li></ul>
-        </article>
-      </div>
+    <section role="tabpanel" id="pipeline" aria-labelledby="tab-pipeline" tabindex="0" hidden>
+      <h2>The pipeline</h2>
+      <p class="intro">One GitHub Actions workflow, <code>.github/workflows/deploy.yml</code>. Pull requests stop after the plan, so a change can be reviewed before it touches AWS. A second workflow runs <code>terraform plan</code> nightly to confirm AWS still matches the code.</p>
+      <div class="excerpts" id="ci-excerpts"></div>
     </section>
 
-    <!-- ============ OPERATIONS ============ -->
-    <section role="tabpanel" id="operations" aria-labelledby="tab-operations" tabindex="0" hidden>
-      <h2>Operations</h2>
-      <p class="intro">The site is watched on a schedule, alerts by email, and is checked nightly against its code.</p>
-
-      <article class="card">
-        <div class="card-head">
-          <h3>Uptime</h3>
-          <p class="note">Checked every 30 min by a Lambda on an EventBridge schedule.</p>
+    <section role="tabpanel" id="source" aria-labelledby="tab-source" tabindex="0" hidden>
+      <h2>Source</h2>
+      <div class="browser">
+        <ul class="files" id="file-list" aria-label="Files"></ul>
+        <div class="viewer">
+          <div class="viewer-head"><span id="file-name">Select a file</span><a id="file-gh" href="https://github.com/Jahe-moore/aws-iac-portfolio" rel="noopener">View on GitHub</a></div>
+          <pre class="code" id="file-code"></pre>
         </div>
-        <div class="stats stats-4">
-          <div class="stat"><span class="stat-v" id="op-status">--</span><span class="stat-k">Status</span></div>
-          <div class="stat"><span class="stat-v" id="op-latency">--</span><span class="stat-k">Latency</span></div>
-          <div class="stat"><span class="stat-v" id="op-uptime">--</span><span class="stat-k">Uptime</span></div>
-          <div class="stat"><span class="stat-v stat-v-sm" id="op-checked">--</span><span class="stat-k">Last check</span></div>
-        </div>
-        <div class="spark-wrap">
-          <div class="spark" id="op-spark" aria-hidden="true"></div>
-          <div class="spark-axis" aria-hidden="true"><span id="op-axis-start">Oldest</span><span>Newest</span></div>
-          <p class="note" id="op-summary">Uptime history not available yet.</p>
-          <p class="legend" aria-hidden="true"><span class="sw sw-up"></span>Up <span class="sw sw-down"></span>Down &middot; bar height is response time</p>
-        </div>
-      </article>
-
-      <article class="card band">
-        <div class="card-head">
-          <h3>API performance, last 24 hours</h3>
-          <p class="note">Pulled from CloudWatch Lambda metrics every 30 minutes.</p>
-        </div>
-        <div class="stats stats-4">
-          <div class="stat"><span class="stat-v" id="pf-req">--</span><span class="stat-k">Requests</span></div>
-          <div class="stat"><span class="stat-v" id="pf-p50">--</span><span class="stat-k">Median response</span></div>
-          <div class="stat"><span class="stat-v" id="pf-max">--</span><span class="stat-k">Slowest</span></div>
-          <div class="stat"><span class="stat-v" id="pf-err">--</span><span class="stat-k">Errors</span></div>
-        </div>
-        <div class="spark-wrap">
-          <div class="spark spark-perf" id="pf-bars" aria-hidden="true"></div>
-          <div class="spark-axis" aria-hidden="true"><span id="pf-axis-start">24 hours ago</span><span>Now</span></div>
-          <p class="note" id="pf-summary">Hourly request history not available yet.</p>
-          <p class="legend" aria-hidden="true"><span class="sw sw-req"></span>Requests per hour <span class="sw sw-down"></span>Hour with errors</p>
-        </div>
-      </article>
-
-      <div class="grid-3">
-        <article class="card">
-          <h3>Alerts</h3>
-          <p>CloudWatch alarms watch two signals: the site failing its uptime check, and errors in the Lambda function. Either one sends an email through SNS.</p>
-        </article>
-        <article class="card">
-          <h3>Drift check</h3>
-          <p class="drift" id="op-drift"><span class="muted">First nightly check not available yet.</span></p>
-          <p class="note">Drift means AWS was changed outside the code. Each night a job runs <code>terraform plan</code> against the live account and would flag any difference.</p>
-        </article>
-        <article class="card">
-          <h3>Change process</h3>
-          <ol class="flow flow-tight">
-            <li>Git commit</li>
-            <li>Plan, reviewed in the pipeline</li>
-            <li>Apply</li>
-          </ol>
-          <p class="note">Nothing is changed by hand in the AWS console.</p>
-        </article>
       </div>
     </section>
 
