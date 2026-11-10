@@ -10,10 +10,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
-    archive = {
-      source  = "hashicorp/archive"
-      version = "~> 2.7"
-    }
   }
 
   # State lives in the bucket created by bootstrap. Bucket name and region
@@ -119,43 +115,8 @@ resource "aws_cloudfront_origin_access_control" "site" {
   signing_protocol                  = "sigv4"
 }
 
-# Same idea for the API: CloudFront signs requests to the Lambda function URL,
-# which rejects anything unsigned.
-resource "aws_cloudfront_origin_access_control" "api" {
-  name                              = "${var.project}-api-oac"
-  origin_access_control_origin_type = "lambda"
-  signing_behavior                  = "always"
-  signing_protocol                  = "sigv4"
-}
-
 data "aws_cloudfront_cache_policy" "optimized" {
   name = "Managed-CachingOptimized"
-}
-
-data "aws_cloudfront_cache_policy" "disabled" {
-  name = "Managed-CachingDisabled"
-}
-
-# Pass the API only what it uses: the viewer's country, TLS and HTTP version,
-# which CloudFront adds itself. No cookies, no other viewer headers.
-resource "aws_cloudfront_origin_request_policy" "api" {
-  name    = "${var.project}-api-request"
-  comment = "Viewer country, TLS and HTTP version for the API"
-
-  cookies_config {
-    cookie_behavior = "none"
-  }
-
-  headers_config {
-    header_behavior = "whitelist"
-    headers {
-      items = ["CloudFront-Viewer-Country", "CloudFront-Viewer-TLS", "CloudFront-Viewer-Http-Version"]
-    }
-  }
-
-  query_strings_config {
-    query_string_behavior = "none"
-  }
 }
 
 # Security headers on every response.
@@ -196,9 +157,9 @@ resource "aws_cloudfront_response_headers_policy" "security" {
 }
 
 resource "aws_cloudfront_distribution" "site" {
-  #checkov:skip=CKV_AWS_68:AWS WAF starts at about $5/month; a static portfolio site with a read-only API does not justify it
+  #checkov:skip=CKV_AWS_68:AWS WAF starts at about $5/month; a static portfolio site does not justify it
   #checkov:skip=CKV2_AWS_47:Depends on WAF (see CKV_AWS_68); no Java or Log4j anywhere in this stack
-  #checkov:skip=CKV_AWS_86:Uptime and errors are tracked by the checker and CloudWatch alarms; access logs would need a separate logging bucket
+  #checkov:skip=CKV_AWS_86:Static portfolio site with no user data; access logs would need a separate logging bucket for little value
   #checkov:skip=CKV_AWS_310:Single S3 origin with eleven-nines durability; a failover origin doubles the infrastructure for no gain
   #checkov:skip=CKV_AWS_374:A public portfolio site is meant to be reachable from anywhere
 
@@ -212,31 +173,6 @@ resource "aws_cloudfront_distribution" "site" {
     domain_name              = aws_s3_bucket.site.bucket_regional_domain_name
     origin_id                = "s3-site"
     origin_access_control_id = aws_cloudfront_origin_access_control.site.id
-  }
-
-  origin {
-    domain_name              = trimsuffix(trimprefix(aws_lambda_function_url.app.function_url, "https://"), "/")
-    origin_id                = "lambda-api"
-    origin_access_control_id = aws_cloudfront_origin_access_control.api.id
-
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-    }
-  }
-
-  ordered_cache_behavior {
-    path_pattern               = "/api/*"
-    target_origin_id           = "lambda-api"
-    viewer_protocol_policy     = "redirect-to-https"
-    allowed_methods            = ["GET", "HEAD"]
-    cached_methods             = ["GET", "HEAD"]
-    cache_policy_id            = data.aws_cloudfront_cache_policy.disabled.id
-    origin_request_policy_id   = aws_cloudfront_origin_request_policy.api.id
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
-    compress                   = true
   }
 
   default_cache_behavior {

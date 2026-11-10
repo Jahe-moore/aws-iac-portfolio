@@ -18,7 +18,6 @@ concurrency:
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   TF_VAR_aws_region: ${{ vars.AWS_REGION }}
-  TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
 
 jobs:
   terraform:
@@ -59,6 +58,7 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+          mask-aws-account-id: true
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -90,15 +90,9 @@ jobs:
 
       - name: Publish site files and deploy status
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           BUCKET=$(terraform -chdir=infra output -raw site_bucket)
           DIST=$(terraform -chdir=infra output -raw distribution_id)
-          CERT=$(terraform -chdir=infra output -raw certificate_arn)
-          terraform -chdir=infra state list | grep -v '^data\.' > inventory.txt
-          export RESOURCES=$(wc -l < inventory.txt)
-          export CERT_EXPIRES=$(aws acm describe-certificate --region us-east-1 --certificate-arn "$CERT" --query Certificate.NotAfter --output text)
           python3 - <<'EOF'
           import json, os, datetime
           sha = os.environ["GITHUB_SHA"]
@@ -107,20 +101,13 @@ jobs:
               "deployed_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
               "commit": sha[:7],
               "commit_url": f"{repo}/commit/{sha}",
-              "message": os.environ.get("COMMIT_MESSAGE", "").splitlines()[0] if os.environ.get("COMMIT_MESSAGE") else "",
-              "run_url": f"{repo}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
-              "resources": int(os.environ["RESOURCES"]),
-              "cert_expires": os.environ["CERT_EXPIRES"],
-              "scan": json.load(open("scan.json")),
-              "inventory": [{"address": a, "type": a.split(".")[0]}
-                            for a in open("inventory.txt").read().split()],
-          }, open("deploy.json", "w"), indent=2)
+          }, open("deploy.json", "w"))
           EOF
           # Publish the repository files so the page can show its own source.
           git ls-files | grep -v '^site/' > files.txt
           while read -r f; do mkdir -p "site/source/$(dirname "$f")"; cp "$f" "site/source/$f"; done < files.txt
           python3 -c "import json; order = ['README.md', 'infra/', 'bootstrap/', '.github/']; files = open('files.txt').read().split(); key = lambda f: (next((i for i, p in enumerate(order) if f.startswith(p)), len(order)), f); json.dump(sorted(files, key=key), open('site/source/manifest.json', 'w'))"
-          aws s3 sync site/ "s3://$BUCKET" --delete --exclude "status/*"
+          aws s3 sync site/ "s3://$BUCKET" --delete --only-show-errors
           aws s3 cp deploy.json "s3://$BUCKET/status/deploy.json" --content-type application/json --cache-control no-cache
           aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*"
           echo "Site: $(terraform -chdir=infra output -raw site_url)" >> "$GITHUB_STEP_SUMMARY"

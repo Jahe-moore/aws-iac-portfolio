@@ -129,10 +129,11 @@ resource "aws_iam_role" "github_actions" {
 }
 
 data "aws_iam_policy_document" "deploy" {
-  #checkov:skip=CKV_AWS_356:CloudFront and ACM create resources whose ARNs do not exist yet, so those two need "*"; every other service is scoped to this project's names
-  #checkov:skip=CKV_AWS_111:Write access is limited to resources named for this project; the remaining "*" covers CloudFront and ACM only
-  #checkov:skip=CKV_AWS_109:IAM changes are limited to roles named iac-portfolio-app-*, which excludes the deploy role itself
+  #checkov:skip=CKV_AWS_356:CloudFront and ACM create resources whose ARNs do not exist yet, so those two need "*"; S3 is scoped to this project's two buckets
+  #checkov:skip=CKV_AWS_111:Write access outside CloudFront and ACM is limited to this project's two buckets
+  #checkov:skip=CKV_AWS_109:Setting bucket policies is needed for the site bucket's CloudFront-only policy and is limited to this project's two buckets
 
+  # Only this project's two buckets: Terraform state and the site files.
   statement {
     sid     = "ProjectBucketsOnly"
     actions = ["s3:*"]
@@ -156,53 +157,7 @@ data "aws_iam_policy_document" "deploy" {
     resources = ["*"]
   }
 
-  statement {
-    sid     = "ProjectServerless"
-    actions = ["lambda:*", "dynamodb:*", "events:*", "sns:*"]
-    resources = [
-      "arn:aws:lambda:*:${local.account_id}:function:${var.project}-*",
-      "arn:aws:dynamodb:*:${local.account_id}:table/${var.project}-*",
-      "arn:aws:events:*:${local.account_id}:rule/${var.project}-*",
-      "arn:aws:sns:*:${local.account_id}:${var.project}-*",
-    ]
-  }
-
-  statement {
-    sid     = "ProjectMonitoring"
-    actions = ["cloudwatch:*", "logs:*"]
-    resources = [
-      "arn:aws:cloudwatch:*:${local.account_id}:alarm:${var.project}-*",
-      "arn:aws:logs:*:${local.account_id}:log-group:/aws/lambda/${var.project}-*",
-    ]
-  }
-
-  statement {
-    sid = "ReadOnlyListing"
-    actions = [
-      "cloudwatch:DescribeAlarms",
-      "logs:DescribeLogGroups",
-      "sns:ListTopics",
-      "events:ListRules",
-      "lambda:ListFunctions",
-      "dynamodb:ListTables",
-    ]
-    resources = ["*"]
-  }
-
-  # The pipeline can create roles only under the app- prefix, so it can never
-  # edit its own role (iac-portfolio-github-actions) to gain more access.
-  statement {
-    sid = "AppRolesOnly"
-    actions = [
-      "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:UpdateRole",
-      "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole",
-      "iam:PutRolePolicy", "iam:GetRolePolicy", "iam:DeleteRolePolicy",
-      "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
-      "iam:ListInstanceProfilesForRole", "iam:PassRole",
-    ]
-    resources = ["arn:aws:iam::${local.account_id}:role/${var.project}-app-*"]
-  }
-
+  # No IAM permissions at all, so the pipeline cannot grant itself more access.
   statement {
     sid       = "WhoAmI"
     actions   = ["sts:GetCallerIdentity"]

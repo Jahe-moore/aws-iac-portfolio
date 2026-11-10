@@ -2,17 +2,16 @@
 
 Live: **https://aws.jakemoore.dev**
 
-A website on AWS where every resource is defined in Terraform and every change ships through a GitHub Actions pipeline. GitHub logs in to AWS with short-lived OIDC tokens, so no cloud keys are stored anywhere. The page reports on itself: last deploy, security scan results, uptime and a nightly drift check.
+A website on AWS where every resource is defined in Terraform and every change ships through a GitHub Actions pipeline. GitHub logs in to AWS with short-lived OIDC tokens, so no cloud keys are stored anywhere. The page explains the project and shows its own Terraform and pipeline code, read from this repository.
 
 | Area | What it uses |
 |---|---|
 | Hosting | S3 (private bucket), CloudFront (CDN, HTTPS), ACM certificate for a custom domain |
-| Serverless | Lambda (Python) behind CloudFront at `/api`, DynamoDB for the visitor counter and uptime history |
-| Operations | EventBridge schedule for uptime checks, CloudWatch alarms, SNS email alerts, nightly drift check |
-| Security | OIDC federation, least-privilege IAM, Origin Access Control on S3 and Lambda, security headers, Checkov scan as a pipeline gate |
+| Change control | Plan on every pull request, apply on `main` only, nightly drift check |
+| Security | OIDC federation, least-privilege IAM, Origin Access Control on S3, security headers, Checkov scan as a pipeline gate |
 | Delivery | Terraform with remote state in S3 (versioned, encrypted, locked), GitHub Actions |
 
-Running cost is about $0.10/month: everything stays inside the AWS free tier except a few cents of CloudWatch metric reads.
+Running cost is about $0/month: everything stays inside the AWS free tier at portfolio traffic, with a $10 budget alert as a guardrail.
 
 ## How it works
 
@@ -25,26 +24,22 @@ git push -> GitHub Actions
                        |
                        v
 AWS:  CloudFront (aws.jakemoore.dev, HTTPS, security headers)
-        |-- /       -> S3 bucket (private, readable only by CloudFront)
-        |-- /api/*  -> Lambda function URL (IAM auth, callable only by CloudFront)
-                         |-- DynamoDB table (visits, uptime history)
-      EventBridge every 30 min -> Lambda uptime check -> CloudWatch metric -> alarm -> SNS email
-      Nightly workflow -> terraform plan -> status/drift.json
+        -> S3 bucket (private, readable only by CloudFront)
+      Nightly workflow -> terraform plan -> fails if AWS no longer matches the code
 ```
 
 | Folder | What it is | Who runs it |
 |---|---|---|
 | `bootstrap/` | State bucket, GitHub OIDC provider, deploy role | You, once, from your machine |
-| `infra/` | Site, CDN, certificate, Lambda, DynamoDB, schedule, alarms | The pipeline, on every push to `main` |
-| `infra/lambda/` | Python handler for `/api/visit`, `/api/health` and the uptime check | Deployed by Terraform |
-| `site/` | The page (HTML, CSS, JS; no frameworks) | Uploaded by the pipeline |
+| `infra/` | Site bucket, CDN, certificate, security headers | The pipeline, on every push to `main` |
+| `site/` | The page (HTML, CSS, JS; no frameworks); the pipeline also publishes the repo files to `/source` for it | Uploaded by the pipeline |
 | `.github/workflows/` | `deploy.yml` (every push), `drift.yml` (nightly) | GitHub Actions |
 
 ## Security choices
 
 - **No stored keys.** The deploy role trusts GitHub's OIDC provider, and only for this repository, matched by GitHub's immutable owner and repo IDs so a renamed or recreated repo cannot assume it.
-- **Least privilege.** The deploy role is limited to resources named for this project. It can create IAM roles only under the `iac-portfolio-app-` prefix, so it cannot change its own permissions. The Lambda role can touch only its own table, log group and metric namespace.
-- **Nothing public except through CloudFront.** S3 blocks all public access; the Lambda function URL requires IAM signatures, which only CloudFront provides.
+- **Least privilege.** The deploy role is limited to resources named for this project. It has no IAM write access at all, so it cannot change its own permissions.
+- **Nothing public except through CloudFront.** S3 blocks all public access; a bucket policy lets only this distribution read it.
 - **Headers.** Strict CSP (no inline scripts or styles), HSTS, `X-Frame-Options: DENY`, Referrer-Policy, Permissions-Policy.
 - **Scan as a gate.** Checkov runs on every push. Findings are fixed, or skipped in the code with a written reason; the live page lists each accepted risk.
 
@@ -70,13 +65,10 @@ You need an AWS account, a GitHub account, a domain whose DNS you control, and T
    ```
    Keep the local `terraform.tfstate` it creates; it is the record of these resources.
 5. **Point the project at your domain.** Set `domain_name` in `infra/variables.tf`.
-6. **Add the repo settings** (Settings, Secrets and variables, Actions):
-   - Variables: `AWS_ROLE_ARN`, `TF_STATE_BUCKET`, `AWS_REGION` (the bootstrap outputs)
-   - Secret: `ALERT_EMAIL` (where alarm emails go)
+6. **Add the repo variables** (Settings, Secrets and variables, Actions): `AWS_ROLE_ARN`, `TF_STATE_BUCKET`, `AWS_REGION` (the bootstrap outputs).
 7. **Push to `main`.** The pipeline requests the certificate and waits for DNS validation. While it waits, add two CNAME records at your DNS provider:
    - the validation record: `aws acm describe-certificate --region us-east-1 --certificate-arn <arn>` shows its name and value
    - your subdomain pointing to the CloudFront domain (the `cloudfront_domain` output)
-8. **Confirm the SNS email** AWS sends, so alarms can reach you.
 
 ## Tearing down
 

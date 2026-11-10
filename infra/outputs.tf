@@ -24,7 +24,3 @@ output "cert_validation_record" {
 output "certificate_arn" {
   value = aws_acm_certificate.site.arn
 }
-
-output "api_function" {
-  value = aws_lambda_function.app.function_name
-}

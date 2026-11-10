@@ -138,9 +138,9 @@
     { title: "No stored keys: GitHub signs in with OIDC",
       why: "AWS trusts GitHub's identity service instead of an access key. Only workflows from this repository, matched by its permanent account and repo IDs, can assume the deploy role, and each login lasts about an hour.",
       file: "bootstrap/main.tf", marker: 'data "aws_iam_policy_document" "github_trust"' },
-    { title: "A deploy role that cannot promote itself",
-      why: "Every permission is limited to resources named for this project. The pipeline can create IAM roles only under the app- prefix, so it has no way to edit its own role and gain more access.",
-      file: "bootstrap/main.tf", marker: "# The pipeline can create roles only under the app- prefix" },
+    { title: "A deploy role scoped to this project",
+      why: "The pipeline's role can touch only this project's two S3 buckets, CloudFront and its certificate. It has no IAM permissions at all, so it cannot grant itself more access.",
+      file: "bootstrap/main.tf", marker: 'data "aws_iam_policy_document" "deploy"' },
     { title: "Shared state with locking",
       why: "Terraform's record of what exists lives in an encrypted, versioned S3 bucket instead of on one laptop. A lock file stops two runs from changing the same infrastructure at once.",
       file: "infra/main.tf", marker: 'backend "s3"' },
@@ -150,9 +150,9 @@
     { title: "Custom domain with a free, self-renewing certificate",
       why: "ACM issues the HTTPS certificate for aws.jakemoore.dev. It is validated through DNS and renews on its own, so there is nothing to remember each year.",
       file: "infra/main.tf", marker: 'resource "aws_acm_certificate" "site"' },
-    { title: "Serverless API that only CloudFront can call",
-      why: "The Lambda function's URL requires signed requests. CloudFront signs them, so the function is reachable only through the site, never directly from the internet.",
-      file: "infra/app.tf", marker: "# The function URL requires AWS signatures", max: 6 }
+    { title: "Security headers on every response",
+      why: "CloudFront adds a strict Content Security Policy, HSTS and anti-framing headers to every page, so the browser blocks injected scripts, insecure connections and clickjacking.",
+      file: "infra/main.tf", marker: 'resource "aws_cloudfront_response_headers_policy" "security"', max: 24 }
   ]);
 
   renderExcerpts("ci-excerpts", [
