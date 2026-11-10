@@ -1,0 +1,13 @@
+# Terraform local files (never commit state or variable files with real values)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+tfplan
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

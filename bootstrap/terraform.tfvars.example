@@ -1,0 +1,3 @@
+# Copy this file to terraform.tfvars and fill in your values.
+github_owner = "your-github-username"
+github_repo  = "aws-iac-portfolio"
