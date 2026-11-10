@@ -20,8 +20,24 @@
     </div>
   </header>
 
-  <section class="results" aria-labelledby="results-h">
+
+  <nav class="tabbar" aria-label="Sections">
     <div class="wrap">
+      <div class="tabs" role="tablist" aria-label="Portfolio sections">
+        <button type="button" role="tab" id="tab-summary" aria-controls="summary" aria-selected="true"><span class="tab-t">Summary</span><span class="tab-s">Results, stack and cost</span></button>
+        <button type="button" role="tab" id="tab-overview" aria-controls="overview" aria-selected="false" tabindex="-1"><span class="tab-t">Overview</span><span class="tab-s">Architecture, how it was built, every resource</span></button>
+        <button type="button" role="tab" id="tab-live" aria-controls="live" aria-selected="false" tabindex="-1"><span class="tab-t">Live</span><span class="tab-s">This visit traced through AWS, traffic by country</span></button>
+        <button type="button" role="tab" id="tab-security" aria-controls="security" aria-selected="false" tabindex="-1"><span class="tab-t">Security</span><span class="tab-s">Controls, scan results, live header check</span></button>
+        <button type="button" role="tab" id="tab-operations" aria-controls="operations" aria-selected="false" tabindex="-1"><span class="tab-t">Operations</span><span class="tab-s">Uptime, API performance, alerts, drift check</span></button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main" class="wrap">
+
+    <!-- ============ SUMMARY ============ -->
+    <section role="tabpanel" id="summary" aria-labelledby="tab-summary" tabindex="0" class="results">
+
       <h2 id="results-h" class="sr-only">Results</h2>
       <div class="tiles">
         <div class="tile">
@@ -86,53 +102,10 @@
           </ul>
         </div>
       </div>
-    </div>
-  </section>
-
-  <section class="strip" aria-label="Latest deployment">
-    <div class="wrap strip-grid">
-      <div class="cell">
-        <span class="k">Last deploy</span>
-        <span class="v" id="s-deploy" data-empty>Not available yet</span>
-      </div>
-      <div class="cell cell-wide">
-        <span class="k">Commit</span>
-        <span class="v" id="s-commit" data-empty>Not available yet</span>
-      </div>
-      <div class="cell">
-        <span class="k">Pipeline run</span>
-        <span class="v" id="s-run" data-empty>Not available yet</span>
-      </div>
-      <div class="cell">
-        <span class="k">Terraform resources</span>
-        <span class="v" id="s-resources" data-empty>Not available yet</span>
-      </div>
-      <div class="cell">
-        <span class="k">Site status</span>
-        <span class="v" id="s-status" data-empty>Not available yet</span>
-      </div>
-      <div class="cell">
-        <span class="k">Visitors</span>
-        <span class="v" id="s-visitors" data-empty>Not available yet</span>
-      </div>
-    </div>
-  </section>
-
-  <nav class="tabbar" aria-label="Sections">
-    <div class="wrap">
-      <div class="tabs" role="tablist" aria-label="Portfolio sections">
-        <button type="button" role="tab" id="tab-overview" aria-controls="overview" aria-selected="true"><span class="tab-t">Overview</span><span class="tab-s">Architecture, how it was built, every resource</span></button>
-        <button type="button" role="tab" id="tab-live" aria-controls="live" aria-selected="false" tabindex="-1"><span class="tab-t">Live</span><span class="tab-s">This visit traced through AWS, traffic by country</span></button>
-        <button type="button" role="tab" id="tab-security" aria-controls="security" aria-selected="false" tabindex="-1"><span class="tab-t">Security</span><span class="tab-s">Controls, scan results, live header check</span></button>
-        <button type="button" role="tab" id="tab-operations" aria-controls="operations" aria-selected="false" tabindex="-1"><span class="tab-t">Operations</span><span class="tab-s">Uptime, API performance, alerts, drift check</span></button>
-      </div>
-    </div>
-  </nav>
-
-  <main id="main" class="wrap">
+    </section>
 
     <!-- ============ OVERVIEW ============ -->
-    <section role="tabpanel" id="overview" aria-labelledby="tab-overview" tabindex="0">
+    <section role="tabpanel" id="overview" aria-labelledby="tab-overview" tabindex="0" hidden>
       <h2>How I built this</h2>
       <p class="intro">A git push is the only way this site changes: GitHub Actions logs in to AWS with a short-lived token, Terraform plans and applies the infrastructure, and the pipeline publishes the files.</p>
 
@@ -277,6 +250,35 @@
     <!-- ============ LIVE ============ -->
     <section role="tabpanel" id="live" aria-labelledby="tab-live" tabindex="0" hidden>
       <h2>Live</h2>
+  <section class="strip strip-in" aria-label="Latest deployment">
+    <div class="wrap strip-grid">
+      <div class="cell">
+        <span class="k">Last deploy</span>
+        <span class="v" id="s-deploy" data-empty>Not available yet</span>
+      </div>
+      <div class="cell cell-wide">
+        <span class="k">Commit</span>
+        <span class="v" id="s-commit" data-empty>Not available yet</span>
+      </div>
+      <div class="cell">
+        <span class="k">Pipeline run</span>
+        <span class="v" id="s-run" data-empty>Not available yet</span>
+      </div>
+      <div class="cell">
+        <span class="k">Terraform resources</span>
+        <span class="v" id="s-resources" data-empty>Not available yet</span>
+      </div>
+      <div class="cell">
+        <span class="k">Site status</span>
+        <span class="v" id="s-status" data-empty>Not available yet</span>
+      </div>
+      <div class="cell">
+        <span class="k">Visitors</span>
+        <span class="v" id="s-visitors" data-empty>Not available yet</span>
+      </div>
+    </div>
+  </section>
+
       <p class="intro">Everything on this tab is read from AWS when the page loads.</p>
 
       <article class="card trace">

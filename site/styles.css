@@ -361,3 +361,18 @@ section > h3 { margin-top: 1.75rem; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* Compact header: tabs sit right under it. */
+.hero { padding: 0.9rem 0 0.8rem; }
+.hero h1 { font-size: clamp(1.35rem, 3.2vw, 1.9rem); margin: 0 0 0.3rem; }
+.hero .lede { margin: 0 0 0.25rem; }
+.results { padding: 0; background: transparent; }
+.strip-in { border: 1px solid var(--border); border-radius: 6px; margin: 0 0 1rem; }
+.strip-in .wrap { padding-left: 0; padding-right: 0; }
+@media (max-width: 640px) { .tab-s { display: none; } }
+.tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 640px) {
+  .tabs { display: flex; overflow-x: auto; grid-template-columns: none; }
+  .tabs [role="tab"] { flex: 0 0 auto; }
+  .tabbar { position: sticky; }
+}
