@@ -125,6 +125,12 @@ data "aws_iam_policy_document" "deploy" {
   }
 
   statement {
+    sid       = "Certificates"
+    actions   = ["acm:*"]
+    resources = ["*"]
+  }
+
+  statement {
     sid       = "WhoAmI"
     actions   = ["sts:GetCallerIdentity"]
     resources = ["*"]

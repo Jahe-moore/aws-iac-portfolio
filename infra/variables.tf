@@ -9,3 +9,9 @@ variable "project" {
   type        = string
   default     = "iac-portfolio"
 }
+
+variable "domain_name" {
+  description = "Custom domain for the site (DNS hosted at Namecheap)"
+  type        = string
+  default     = "aws.jakemoore.dev"
+}

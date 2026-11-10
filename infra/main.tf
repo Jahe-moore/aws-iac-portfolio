@@ -32,6 +32,19 @@ provider "aws" {
   }
 }
 
+# CloudFront only accepts certificates from us-east-1, whatever region the rest uses.
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+
+  default_tags {
+    tags = {
+      Project   = var.project
+      ManagedBy = "terraform"
+    }
+  }
+}
+
 data "aws_caller_identity" "current" {}
 
 locals {
@@ -53,6 +66,26 @@ resource "aws_s3_bucket_public_access_block" "site" {
   restrict_public_buckets = true
 }
 
+# ---------- HTTPS certificate for the custom domain ----------
+
+# Free public certificate from ACM; it renews itself while the DNS record stays.
+# DNS lives at Namecheap, so the validation record is added there by hand once
+# (see the cert_validation_record output).
+resource "aws_acm_certificate" "site" {
+  provider          = aws.us_east_1
+  domain_name       = var.domain_name
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_acm_certificate_validation" "site" {
+  provider        = aws.us_east_1
+  certificate_arn = aws_acm_certificate.site.arn
+}
+
 # ---------- CloudFront ----------
 
 # Origin Access Control: lets CloudFront, and only CloudFront, read the bucket.
@@ -72,6 +105,7 @@ resource "aws_cloudfront_distribution" "site" {
   default_root_object = "index.html"
   price_class         = "PriceClass_100" # North America + Europe only, the cheapest tier
   comment             = var.project
+  aliases             = [var.domain_name]
 
   origin {
     domain_name              = aws_s3_bucket.site.bucket_regional_domain_name
@@ -95,7 +129,9 @@ resource "aws_cloudfront_distribution" "site" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    acm_certificate_arn      = aws_acm_certificate_validation.site.certificate_arn
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1.2_2021"
   }
 }
 
