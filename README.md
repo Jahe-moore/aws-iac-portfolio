@@ -1,134 +1,89 @@
-# AWS Infrastructure as Code Portfolio Project
+# AWS Infrastructure as Code
 
-A static website on AWS where every piece of infrastructure is defined in Terraform and deployed by GitHub Actions. No console clicking, no access keys stored in GitHub.
+Live: **https://aws.jakemoore.dev**
 
-**Stack:** S3, CloudFront, IAM (OIDC), Terraform, GitHub Actions
-**Running cost:** about $0/month at personal traffic levels
+A website on AWS where every resource is defined in Terraform and every change ships through a GitHub Actions pipeline. GitHub logs in to AWS with short-lived OIDC tokens, so no cloud keys are stored anywhere. The page reports on itself: last deploy, security scan results, uptime and a nightly drift check.
 
-> This README doubles as your setup guide. Once the project works, replace the setup sections with a write-up (problem, architecture diagram, lessons learned).
+| Area | What it uses |
+|---|---|
+| Hosting | S3 (private bucket), CloudFront (CDN, HTTPS), ACM certificate for a custom domain |
+| Serverless | Lambda (Python) behind CloudFront at `/api`, DynamoDB for the visitor counter and uptime history |
+| Operations | EventBridge schedule for uptime checks, CloudWatch alarms, SNS email alerts, nightly drift check |
+| Security | OIDC federation, least-privilege IAM, Origin Access Control on S3 and Lambda, security headers, Checkov scan as a pipeline gate |
+| Delivery | Terraform with remote state in S3 (versioned, encrypted, locked), GitHub Actions |
 
-## How it fits together
+Running cost is about $0/month: every service used stays inside the AWS free tier at portfolio traffic.
+
+## How it works
 
 ```
-You edit code -> git push -> GitHub Actions
-                                 |  logs in to AWS with OIDC (short-lived token, no keys)
-                                 v
-                             Terraform  -> builds/updates S3 bucket + CloudFront
-                                 |
-                                 v
-                             Uploads site/ files -> live at the CloudFront URL
+git push -> GitHub Actions
+              1. Checkov scans the Terraform (any failed check stops the run)
+              2. OIDC login to AWS: short-lived token, scoped to this repo
+              3. terraform fmt, validate, plan
+              4. on main only: terraform apply, upload site/, write status/deploy.json
+                       |
+                       v
+AWS:  CloudFront (aws.jakemoore.dev, HTTPS, security headers)
+        |-- /       -> S3 bucket (private, readable only by CloudFront)
+        |-- /api/*  -> Lambda function URL (IAM auth, callable only by CloudFront)
+                         |-- DynamoDB table (visits, uptime history)
+      EventBridge every 30 min -> Lambda uptime check -> CloudWatch metric -> alarm -> SNS email
+      Nightly workflow -> terraform plan -> status/drift.json
 ```
 
 | Folder | What it is | Who runs it |
 |---|---|---|
-| `bootstrap/` | One-time setup: state bucket, GitHub trust link, deploy role | You, once, from your PC |
-| `infra/` | The project itself: website bucket and CloudFront | GitHub Actions, on every push |
-| `site/` | The web page files | Uploaded by the pipeline |
-| `.github/workflows/` | The pipeline definition | GitHub |
+| `bootstrap/` | State bucket, GitHub OIDC provider, deploy role | You, once, from your machine |
+| `infra/` | Site, CDN, certificate, Lambda, DynamoDB, schedule, alarms | The pipeline, on every push to `main` |
+| `infra/lambda/` | Python handler for `/api/visit`, `/api/health` and the uptime check | Deployed by Terraform |
+| `site/` | The page (HTML, CSS, JS; no frameworks) | Uploaded by the pipeline |
+| `.github/workflows/` | `deploy.yml` (every push), `drift.yml` (nightly) | GitHub Actions |
 
-## Part 1: Accounts and tools (about 45 minutes)
+## Security choices
 
-1. **Create an AWS account** at aws.amazon.com. Turn on MFA for the root login right away.
-2. **Set a billing alert.** In the AWS console, search "Budgets", create a budget, pick the "Monthly cost budget" template, set it to $10, and enter your email.
-3. **Create an admin user for yourself** so you stop using the root login:
-   - Console, search "IAM", Users, Create user, name it `jake-admin`
-   - Attach the policy `AdministratorAccess`
-   - Open the user, Security credentials, Create access key, choose "Command Line Interface"
-   - Keep that page open for step 5. Never paste these keys into a file in this repo.
-4. **Install the tools** (Windows, in PowerShell):
-   ```powershell
-   winget install Hashicorp.Terraform
-   winget install Amazon.AWSCLI
-   winget install Git.Git
+- **No stored keys.** The deploy role trusts GitHub's OIDC provider, and only for this repository, matched by GitHub's immutable owner and repo IDs so a renamed or recreated repo cannot assume it.
+- **Least privilege.** The deploy role is limited to resources named for this project. It can create IAM roles only under the `iac-portfolio-app-` prefix, so it cannot change its own permissions. The Lambda role can touch only its own table, log group and metric namespace.
+- **Nothing public except through CloudFront.** S3 blocks all public access; the Lambda function URL requires IAM signatures, which only CloudFront provides.
+- **Headers.** Strict CSP (no inline scripts or styles), HSTS, `X-Frame-Options: DENY`, Referrer-Policy, Permissions-Policy.
+- **Scan as a gate.** Checkov runs on every push. Findings are fixed, or skipped in the code with a written reason; the live page lists each accepted risk.
+
+## Deploy your own
+
+You need an AWS account, a GitHub account, a domain whose DNS you control, and Terraform 1.10+, the AWS CLI v2 and the GitHub CLI installed.
+
+1. **Sign the CLI in to AWS** with an identity that has admin rights for the one-time bootstrap. `aws login` uses your console sign-in and issues temporary credentials, so no access key is created:
    ```
-   Close and reopen PowerShell, then confirm:
-   ```powershell
-   terraform -version
-   aws --version
+   aws login --region us-west-2
    ```
-5. **Connect the CLI to your account:**
-   ```powershell
-   aws configure
+2. **Create a GitHub repo** and push this code to it.
+3. **Look up the repo's OIDC subject IDs:**
    ```
-   Paste the access key and secret key, region `us-west-2`, output `json`. Then check it worked:
-   ```powershell
-   aws sts get-caller-identity
+   gh api repos/OWNER/REPO/actions/oidc/customization/sub
    ```
-
-## Part 2: Put the code on GitHub (10 minutes)
-
-1. Create a new **empty** repo on GitHub named `aws-iac-portfolio` (public, no README).
-2. In PowerShell, from this folder:
-   ```powershell
-   git init -b main
-   git add .
-   git commit -m "Initial scaffold"
-   git remote add origin https://github.com/YOUR_USERNAME/aws-iac-portfolio.git
+   The `sub_claim_prefix` reads `repo:OWNER@OWNER_ID/REPO@REPO_ID`.
+4. **Bootstrap.** Copy `bootstrap/terraform.tfvars.example` to `terraform.tfvars`, fill in the four values, then:
    ```
-   Do not push yet. The pipeline needs Part 3 first.
-
-## Part 3: Bootstrap (15 minutes, run once)
-
-```powershell
-cd bootstrap
-copy terraform.tfvars.example terraform.tfvars
-notepad terraform.tfvars      # set your GitHub username and repo name
-terraform init
-terraform plan                # read what it intends to create
-terraform apply               # type yes
-```
-
-It prints three outputs. In your GitHub repo go to **Settings, Secrets and variables, Actions, Variables tab** and add each one as a repository variable:
-
-- `AWS_ROLE_ARN`
-- `TF_STATE_BUCKET`
-- `AWS_REGION`
-
-These are identifiers, not secrets, which is the point of OIDC.
-
-## Part 4: First deploy
-
-```powershell
-cd ..
-git push -u origin main
-```
-
-Open the **Actions** tab on GitHub and watch the run. The first one takes 5 to 10 minutes because CloudFront is slow to create. The site URL appears in the run summary.
-
-## Part 5: The demo
-
-Edit `site/index.html`, change "Version 1" to "Version 2", then:
-
-```powershell
-git commit -am "Update site"
-git push
-```
-
-The page updates on its own in about a minute. This is the 30-second clip for the video.
+   cd bootstrap
+   terraform init
+   terraform apply
+   ```
+   Keep the local `terraform.tfstate` it creates; it is the record of these resources.
+5. **Point the project at your domain.** Set `domain_name` in `infra/variables.tf`.
+6. **Add the repo settings** (Settings, Secrets and variables, Actions):
+   - Variables: `AWS_ROLE_ARN`, `TF_STATE_BUCKET`, `AWS_REGION` (the bootstrap outputs)
+   - Secret: `ALERT_EMAIL` (where alarm emails go)
+7. **Push to `main`.** The pipeline requests the certificate and waits for DNS validation. While it waits, add two CNAME records at your DNS provider:
+   - the validation record: `aws acm describe-certificate --region us-east-1 --certificate-arn <arn>` shows its name and value
+   - your subdomain pointing to the CloudFront domain (the `cloudfront_domain` output)
+8. **Confirm the SNS email** AWS sends, so alarms can reach you.
 
 ## Tearing down
 
-At idle this costs effectively nothing, so you can leave it up. To remove everything:
-
-```powershell
+```
 cd infra
-terraform init -backend-config="bucket=YOUR_TF_STATE_BUCKET" -backend-config="region=us-west-2"
+terraform init -backend-config="bucket=YOUR_STATE_BUCKET" -backend-config="region=us-west-2"
 terraform destroy
 ```
 
-To also remove the bootstrap pieces, empty the state bucket in the console, then run `terraform destroy` in `bootstrap/`.
-
-## What to screen-record as you go
-
-- The empty AWS console before anything exists
-- `terraform plan` output in bootstrap (shows the "code becomes infrastructure" idea)
-- The first GitHub Actions run going green
-- The live site, then the Version 1 to Version 2 change deploying
-- Blur or crop your 12-digit AWS account ID and email. Never show the access key page.
-
-## Next steps after it works
-
-1. Tighten the role's trust policy so only the `main` branch can apply
-2. Add a custom domain with an ACM certificate
-3. Add the VPC, load balancer, and container app as a second stack
-4. Replace the `jake-admin` access key with IAM Identity Center (leads into the security baseline project)
+Then empty the state bucket and run `terraform destroy` in `bootstrap/`.

@@ -35,36 +35,6 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0B1528;
-    --surface: #14223D;
-    --text: #E3E8EF;
-    --text-muted: #9AA6B8;
-    --heading: #F2F5F9;
-    --accent: #7B9BC0;
-    --border: #2A3B5C;
-    --link: #9FBCDB;
-    --chip-bg: #22365A;
-    --chip-fg: #DDE8F2;
-    --hero-bg: var(--navy);
-    --strip-bg: #111D35;
-    --foot-bg: #08101F;
-    --ok: #4ADE80;
-    --bad: #F87171;
-    --warn: #F5B544;
-
-    --d-box-fill: #1B2A4A;
-    --d-box-stroke: #7B9BC0;
-    --d-key-fill: #DDE8F2;
-    --d-key-text: #0F1D36;
-    --d-key-sub: #3D4F6E;
-    --d-line: #9AA6B8;
-    --d-group: #7B9BC0;
-    color-scheme: dark;
-  }
-}
-
 *, *::before, *::after { box-sizing: border-box; }
 html { font-size: 18px; -webkit-text-size-adjust: 100%; }
 body {

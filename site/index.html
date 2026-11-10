@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AWS Infrastructure as Code | Jake Moore</title>
   <meta name="description" content="A static site on AWS with every resource defined in Terraform and deployed by GitHub Actions. Built by Jake Moore, MIS, University of Arizona Eller College.">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="light">
   <link rel="stylesheet" href="styles.css">
   <script src="app.js" defer></script>
 </head>
@@ -14,7 +14,6 @@
 
   <header class="hero">
     <div class="wrap">
-      <p class="eyebrow">AWS &middot; Terraform &middot; GitHub Actions</p>
       <h1>Infrastructure as code, running live</h1>
       <p class="lede">A static website on AWS where every resource is defined in Terraform and every change ships through a GitHub Actions pipeline. Nothing on this page was configured by hand in the AWS console.</p>
       <p class="byline">Jake Moore &middot; Management Information Systems, Eller College of Management, University of Arizona &middot; graduating May 2027 &middot; <a href="https://github.com/Jahe-moore/aws-iac-portfolio" rel="noopener">Source on GitHub</a></p>
@@ -65,7 +64,6 @@
 
     <!-- ============ OVERVIEW ============ -->
     <section role="tabpanel" id="overview" aria-labelledby="tab-overview" tabindex="0">
-      <p class="label">Competency: cloud architecture and automation</p>
       <h2>How I built this</h2>
       <p class="intro">A git push is the only way this site changes: GitHub Actions logs in to AWS with a short-lived token, Terraform plans and applies the infrastructure, and the pipeline publishes the files.</p>
 
@@ -231,7 +229,6 @@
 
     <!-- ============ LIVE ============ -->
     <section role="tabpanel" id="live" aria-labelledby="tab-live" tabindex="0" hidden>
-      <p class="label">Competency: serverless application and data</p>
       <h2>Live</h2>
       <p class="intro">Everything on this tab is read from AWS when the page loads.</p>
 
@@ -271,7 +268,6 @@
 
     <!-- ============ SECURITY ============ -->
     <section role="tabpanel" id="security" aria-labelledby="tab-security" tabindex="0" hidden>
-      <p class="label">Competency: identity, access and security controls</p>
       <h2>Security</h2>
       <p class="intro">Each control is defined in the Terraform code and checked on every push.</p>
 
@@ -310,7 +306,6 @@
 
     <!-- ============ OPERATIONS ============ -->
     <section role="tabpanel" id="operations" aria-labelledby="tab-operations" tabindex="0" hidden>
-      <p class="label">Competency: monitoring and change management</p>
       <h2>Operations</h2>
       <p class="intro">The site is watched on a schedule, alerts by email, and is checked nightly against its code.</p>
 
