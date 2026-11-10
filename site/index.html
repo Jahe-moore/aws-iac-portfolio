@@ -186,6 +186,10 @@
         </li>
       </ol>
 
+      <h3 id="inventory">Infrastructure inventory</h3>
+      <p class="note" id="inv-note">Every resource Terraform manages in the live deployment, grouped by AWS service.</p>
+      <div class="inv" id="inv-grid"><p class="muted">Not available yet</p></div>
+
       <div class="split">
         <div>
           <h3>Stack</h3>
@@ -232,6 +236,27 @@
       <h2>Live</h2>
       <p class="intro">Everything on this tab is read from AWS when the page loads.</p>
 
+      <article class="card trace">
+        <div class="card-head">
+          <h3>Your request, traced</h3>
+          <p class="note">The path this page load took through AWS a moment ago.</p>
+        </div>
+        <dl class="trace-grid">
+          <div><dt>Edge location</dt><dd id="t-edge" class="muted">Not available yet</dd></div>
+          <div><dt>Edge cache</dt><dd id="t-cache" class="muted">Not available yet</dd></div>
+          <div><dt>Your country</dt><dd id="t-country" class="muted">Not available yet</dd></div>
+          <div><dt>TLS</dt><dd id="t-tls" class="muted">Not available yet</dd></div>
+          <div><dt>HTTP</dt><dd id="t-http" class="muted">Not available yet</dd></div>
+          <div><dt>Lambda duration</dt><dd id="t-dur" class="muted">Not available yet</dd></div>
+          <div><dt>Start</dt><dd id="t-start" class="muted">Not available yet</dd></div>
+          <div><dt>Request ID</dt><dd id="t-rid" class="muted">Not available yet</dd></div>
+        </dl>
+        <div class="trace-notes">
+          <p class="note">CloudFront answers from the edge location nearest you and forwards /api requests to the Lambda function. A cold start is the first request after the function has sat idle: AWS loads the code into a fresh environment, which adds a short delay. A warm start reuses an environment that is already running.</p>
+          <p class="note"><strong>Nothing about you is stored except a +1 for your country.</strong></p>
+        </div>
+      </article>
+
       <div class="grid-2">
         <article class="card">
           <h3>Visitor counter</h3>
@@ -243,6 +268,14 @@
         </article>
 
         <article class="card">
+          <h3>Where visitors come from</h3>
+          <ol class="hbars" id="l-countries"><li class="muted">Not available yet</li></ol>
+          <p class="note">Top 10 countries by visits, from the country CloudFront attaches to each request.</p>
+        </article>
+      </div>
+
+      <div class="grid-2">
+        <article class="card">
           <h3>Current deployment</h3>
           <dl class="kv" id="l-deploy">
             <div><dt>Deployed</dt><dd id="l-time" class="muted">Not available yet</dd></div>
@@ -253,16 +286,16 @@
             <div><dt>Certificate</dt><dd id="l-cert" class="muted">Not available yet</dd></div>
           </dl>
         </article>
-      </div>
 
-      <div class="card band">
-        <h3>How this updates</h3>
-        <ol class="flow">
+        <article class="card">
+          <h3>How this updates</h3>
+          <ol class="flow flow-tight">
           <li>A push to main runs the pipeline.</li>
           <li>Terraform applies the change and counts the resources it manages.</li>
           <li>The pipeline writes <code>/status/deploy.json</code> with the commit, run and scan results.</li>
           <li>This page reads that file, so the figures above always describe the build that is live.</li>
-        </ol>
+          </ol>
+        </article>
       </div>
     </section>
 
@@ -285,6 +318,17 @@
           <tr><th scope="row" data-label="Control">Budget guardrail</th><td data-label="How">Email alerts at 85% and 100% of $10 actual monthly spend, and when the month is forecast to pass $10.</td><td data-label="Where">AWS Budgets</td></tr>
         </tbody>
       </table>
+
+      <article class="card band">
+        <div class="card-head">
+          <h3>Live header check</h3>
+          <p class="note">Read live from this page's own response.</p>
+        </div>
+        <table class="table hdrs">
+          <thead><tr><th scope="col">Header</th><th scope="col">Status</th><th scope="col">Value</th></tr></thead>
+          <tbody id="hdr-rows"><tr><td colspan="3" class="muted">Not available yet</td></tr></tbody>
+        </table>
+      </article>
 
       <div class="grid-2">
         <article class="card">
@@ -325,6 +369,25 @@
           <div class="spark-axis" aria-hidden="true"><span id="op-axis-start">Oldest</span><span>Newest</span></div>
           <p class="note" id="op-summary">Uptime history not available yet.</p>
           <p class="legend" aria-hidden="true"><span class="sw sw-up"></span>Up <span class="sw sw-down"></span>Down &middot; bar height is response time</p>
+        </div>
+      </article>
+
+      <article class="card band">
+        <div class="card-head">
+          <h3>API performance, last 24 hours</h3>
+          <p class="note">Pulled from CloudWatch Lambda metrics every 30 minutes.</p>
+        </div>
+        <div class="stats stats-4">
+          <div class="stat"><span class="stat-v" id="pf-req">--</span><span class="stat-k">Requests</span></div>
+          <div class="stat"><span class="stat-v" id="pf-p50">--</span><span class="stat-k">Median response</span></div>
+          <div class="stat"><span class="stat-v" id="pf-max">--</span><span class="stat-k">Slowest</span></div>
+          <div class="stat"><span class="stat-v" id="pf-err">--</span><span class="stat-k">Errors</span></div>
+        </div>
+        <div class="spark-wrap">
+          <div class="spark spark-perf" id="pf-bars" aria-hidden="true"></div>
+          <div class="spark-axis" aria-hidden="true"><span id="pf-axis-start">24 hours ago</span><span>Now</span></div>
+          <p class="note" id="pf-summary">Hourly request history not available yet.</p>
+          <p class="legend" aria-hidden="true"><span class="sw sw-req"></span>Requests per hour <span class="sw sw-down"></span>Hour with errors</p>
         </div>
       </article>
 

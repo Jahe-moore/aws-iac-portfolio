@@ -37,8 +37,18 @@
     });
   });
 
-  window.addEventListener("hashchange", function () { select(location.hash.slice(1), false, false); });
-  select(location.hash.slice(1), false, false);
+  /* A hash can name a tab (#live) or an element inside one (#inventory). */
+  function route(scroll) {
+    var id = "";
+    try { id = decodeURIComponent(location.hash.slice(1)); } catch (e) { id = ""; }
+    if (!id || ids.indexOf(id) !== -1) { select(id, false, false); return; }
+    var target = document.getElementById(id);
+    var panel = target && target.closest ? target.closest('[role="tabpanel"]') : null;
+    select(panel ? panel.id : ids[0], false, false);
+    if (panel && scroll && target.scrollIntoView) target.scrollIntoView({ block: "start" });
+  }
+  window.addEventListener("hashchange", function () { route(true); });
+  route(false);
 
   /* ---------- helpers ---------- */
   function getJSON(url) {
@@ -54,6 +64,31 @@
         return d;
       })
       .finally(function () { if (timer) clearTimeout(timer); });
+  }
+
+  function getWithHeaders(url) {
+    var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 8000) : null;
+    return fetch(url, { cache: "no-store", credentials: "same-origin", signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json().then(function (d) {
+          if (!d || typeof d !== "object") throw new Error("bad body");
+          return { data: d, headers: r.headers };
+        });
+      })
+      .finally(function () { if (timer) clearTimeout(timer); });
+  }
+
+  var regionNames = null;
+  try { regionNames = new Intl.DisplayNames(["en"], { type: "region" }); } catch (e) { regionNames = null; }
+  function countryName(code) {
+    if (typeof code !== "string" || !/^[A-Za-z]{2}$/.test(code)) return null;
+    code = code.toUpperCase();
+    if (code === "XX" || code === "ZZ") return "Unknown";
+    var n = null;
+    try { n = regionNames ? regionNames.of(code) : null; } catch (e) { n = null; }
+    return n && n !== code ? n : code;
   }
 
   function date(v) {
@@ -153,13 +188,17 @@
       fill($("l-run"), [link(d.run_url, runId ? "GitHub Actions run " + runId : "GitHub Actions run")]);
     }
     if (res) {
-      fill($("s-resources"), [res]);
+      var invLink = el("a", null, res);
+      invLink.href = "#inventory";
+      fill($("s-resources"), [invLink]);
       fill($("l-resources"), [res + " resources managed by Terraform"]);
     }
     var cert = date(d.cert_expires);
     if (cert) {
       fill($("l-cert"), ["Valid until " + localDate(cert), el("span", "sub", " · renews automatically before expiry")]);
     }
+
+    try { renderInventory(d.inventory); } catch (e) { /* quiet */ }
 
     var scan = d.scan;
     if (scan && typeof scan === "object") {
@@ -191,6 +230,79 @@
     }
   }).catch(function () { /* quiet: placeholders stay */ });
 
+  /* ---------- inventory ---------- */
+  var SERVICES = [
+    ["aws_s3_", "S3", "s3"],
+    ["aws_cloudfront_", "CloudFront", "cloudfront"],
+    ["aws_acm_", "ACM", "acm"],
+    ["aws_lambda_", "Lambda", "lambda"],
+    ["aws_dynamodb_", "DynamoDB", "dynamodb"],
+    ["aws_cloudwatch_event_", "EventBridge", "cloudwatch_event"],
+    ["aws_cloudwatch_", "CloudWatch", "cloudwatch"],
+    ["aws_sns_", "SNS", "sns"],
+    ["aws_iam_", "IAM", "iam"]
+  ];
+  var ORDER = ["S3", "CloudFront", "ACM", "Lambda", "DynamoDB", "EventBridge", "CloudWatch", "SNS", "IAM", "Other"];
+
+  function serviceOf(type) {
+    for (var i = 0; i < SERVICES.length; i++) {
+      if (type.indexOf(SERVICES[i][0]) === 0) return SERVICES[i];
+    }
+    return null;
+  }
+
+  function readable(type, address) {
+    var svc = serviceOf(type);
+    var kind = type.replace(/^aws_/, "");
+    if (svc) kind = kind.slice(svc[2].length).replace(/^_/, "");
+    kind = kind.replace(/_/g, " ").replace(/\b(url|iam|oidc|tls|sns|sqs|kms|arn|api)\b/g, function (w) { return w.toUpperCase(); });
+    if (!svc) kind = kind.replace(/^budgets budget/, "budget");
+    var label = (svc ? svc[1] : "AWS") + (kind ? " " + kind : "");
+    var name = address;
+    var at = address.lastIndexOf(type + ".");
+    if (at !== -1) name = address.slice(at + type.length + 1);
+    return { label: label, name: name };
+  }
+
+  function renderInventory(inv) {
+    if (!Array.isArray(inv) || !inv.length) return;
+    var groups = {};
+    inv.forEach(function (r) {
+      if (!r || typeof r.type !== "string" || typeof r.address !== "string") return;
+      if (r.address.indexOf("data.") === 0) return;
+      var svc = serviceOf(r.type);
+      var key = svc ? svc[1] : "Other";
+      (groups[key] = groups[key] || []).push(readable(r.type, r.address));
+    });
+    var grid = $("inv-grid");
+    var total = 0;
+    var frag = document.createDocumentFragment();
+    ORDER.forEach(function (key) {
+      var items = groups[key];
+      if (!items || !items.length) return;
+      total += items.length;
+      items.sort(function (a, b) { return (a.label + a.name).localeCompare(b.label + b.name); });
+      var card = el("div", "inv-card");
+      var head = el("div", "inv-head");
+      head.appendChild(el("h4", null, key));
+      head.appendChild(el("span", "inv-n", String(items.length)));
+      card.appendChild(head);
+      var ul = el("ul");
+      items.forEach(function (it) {
+        var li = el("li");
+        li.appendChild(el("b", null, it.label + ": "));
+        li.appendChild(document.createTextNode(it.name));
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+      frag.appendChild(card);
+    });
+    if (!total) return;
+    grid.textContent = "";
+    grid.appendChild(frag);
+    $("inv-note").textContent = total + " resources Terraform manages in the live deployment, grouped by AWS service.";
+  }
+
   /* ---------- drift.json ---------- */
   getJSON("/status/drift.json").then(function (d) {
     if (typeof d.drift !== "boolean") return;
@@ -204,7 +316,99 @@
   }).catch(function () {});
 
   /* ---------- visit counter: once per page load ---------- */
-  getJSON("/api/visit").then(function (d) {
+  var EDGES = {
+    LAX: "Los Angeles", SFO: "San Francisco", SJC: "San Jose", SEA: "Seattle", PDX: "Portland", HIO: "Hillsboro, Oregon",
+    PHX: "Phoenix", DEN: "Denver", DFW: "Dallas", IAH: "Houston", HOU: "Houston", ORD: "Chicago", MSP: "Minneapolis",
+    DTW: "Detroit", ATL: "Atlanta", MIA: "Miami", TPA: "Tampa", JAX: "Jacksonville", IAD: "Ashburn, Virginia",
+    JFK: "New York", EWR: "Newark", BOS: "Boston", PHL: "Philadelphia", PIT: "Pittsburgh", CMH: "Columbus",
+    MCI: "Kansas City", SLC: "Salt Lake City", BNA: "Nashville", CLT: "Charlotte", ANC: "Anchorage", HNL: "Honolulu",
+    YVR: "Vancouver", YYZ: "Toronto", YTO: "Toronto", YUL: "Montreal", MEX: "Mexico City", QRO: "Queretaro",
+    GRU: "Sao Paulo", GIG: "Rio de Janeiro", EZE: "Buenos Aires", SCL: "Santiago", BOG: "Bogota", LIM: "Lima",
+    LHR: "London", MAN: "Manchester", DUB: "Dublin", CDG: "Paris", MRS: "Marseille", FRA: "Frankfurt", MUC: "Munich",
+    DUS: "Dusseldorf", HAM: "Hamburg", AMS: "Amsterdam", BRU: "Brussels", MAD: "Madrid", BCN: "Barcelona",
+    LIS: "Lisbon", MXP: "Milan", FCO: "Rome", ZRH: "Zurich", VIE: "Vienna", PRG: "Prague", WAW: "Warsaw",
+    ARN: "Stockholm", CPH: "Copenhagen", OSL: "Oslo", HEL: "Helsinki", ATH: "Athens", SOF: "Sofia", BUD: "Budapest",
+    TLV: "Tel Aviv", DXB: "Dubai", FJR: "Fujairah", BAH: "Bahrain", JNB: "Johannesburg", CPT: "Cape Town",
+    NBO: "Nairobi", LOS: "Lagos", BOM: "Mumbai", DEL: "New Delhi", BLR: "Bangalore", MAA: "Chennai", HYD: "Hyderabad",
+    CCU: "Kolkata", SIN: "Singapore", KUL: "Kuala Lumpur", BKK: "Bangkok", CGK: "Jakarta", MNL: "Manila",
+    HKG: "Hong Kong", TPE: "Taipei", NRT: "Tokyo", HND: "Tokyo", KIX: "Osaka", ICN: "Seoul", SYD: "Sydney",
+    MEL: "Melbourne", BNE: "Brisbane", PER: "Perth", AKL: "Auckland"
+  };
+
+  function setDD(id, main, sub, title) {
+    var node = $(id);
+    if (!node) return;
+    var parts = [main];
+    if (sub) parts.push(el("span", "sub", sub));
+    fill(node, parts);
+    if (title) node.title = title;
+  }
+
+  function renderTrace(d, headers) {
+    var pop = headers ? headers.get("x-amz-cf-pop") : null;
+    if (pop && /^[A-Za-z]{3}/.test(pop)) {
+      var code = pop.slice(0, 3).toUpperCase();
+      setDD("t-edge", EDGES[code] || code, "CloudFront " + pop, null);
+    }
+    var xc = headers ? headers.get("x-cache") : null;
+    if (xc) {
+      var hit = /^hit/i.test(xc), miss = /^miss/i.test(xc);
+      setDD("t-cache", hit ? "Hit" : miss ? "Miss" : xc.split(" ")[0],
+        hit ? "served from the edge cache" : miss ? "passed through to Lambda" : xc, xc);
+    }
+    var rq = d.request && typeof d.request === "object" ? d.request : null;
+    if (!rq) return;
+    var cn = countryName(rq.country);
+    if (cn) setDD("t-country", cn, cn !== "Unknown" ? String(rq.country).toUpperCase() : null, null);
+    if (typeof rq.tls === "string" && rq.tls) setDD("t-tls", rq.tls.replace(/^TLSv/i, "TLS "), "encrypted in transit", null);
+    if (typeof rq.http === "string" && rq.http) {
+      var hv = rq.http.replace(/^HTTP\//i, "");
+      setDD("t-http", "HTTP/" + (hv === "2.0" ? "2" : hv === "3.0" ? "3" : hv), null, null);
+    }
+    var dur = num(rq.duration_ms);
+    if (dur !== null) setDD("t-dur", dur + " ms", "time inside the function", null);
+    if (typeof rq.cold_start === "boolean") {
+      setDD("t-start", rq.cold_start ? "Cold" : "Warm", rq.cold_start ? "fresh environment loaded" : "reused a running environment", null);
+    }
+    if (typeof rq.request_id === "string" && rq.request_id) {
+      var rid = rq.request_id;
+      setDD("t-rid", rid.length > 13 ? rid.slice(0, 8) + "..." : rid, "AWS request ID", rid);
+    }
+  }
+
+  function renderCountries(list) {
+    var ol = $("l-countries");
+    if (!Array.isArray(list)) return;
+    var rows = list.filter(function (c) {
+      return c && typeof c.hits === "number" && isFinite(c.hits) && c.hits > 0 && countryName(c.code);
+    }).sort(function (a, b) { return b.hits - a.hits; });
+    if (!rows.length) return;
+    var sum = rows.reduce(function (a, c) { return a + c.hits; }, 0);
+    var top = rows[0].hits;
+    ol.textContent = "";
+    rows.slice(0, 10).forEach(function (c) {
+      var name = countryName(c.code);
+      var share = Math.round(c.hits / sum * 1000) / 10;
+      var li = el("li");
+      li.appendChild(el("span", "hb-name", name));
+      var track = el("span", "hb-track");
+      track.setAttribute("aria-hidden", "true");
+      var f = el("span", "hb-fill");
+      f.style.width = Math.max(2, Math.round(c.hits / top * 100)) + "%";
+      track.appendChild(f);
+      li.appendChild(track);
+      var v = el("span", "hb-val");
+      v.appendChild(el("b", null, c.hits.toLocaleString()));
+      v.appendChild(document.createTextNode(" · " + share + "%"));
+      li.appendChild(v);
+      ol.appendChild(li);
+    });
+  }
+
+  getWithHeaders("/api/visit").then(function (res) {
+    var d = res.data;
+    try { renderTrace(d, res.headers); } catch (e) { /* quiet */ }
+    try { renderCountries(d.countries); } catch (e) { /* quiet */ }
     var t = num(d.total), td = num(d.today);
     if (t !== null) {
       fill($("s-visitors"), [t]);
@@ -261,5 +465,79 @@
     var down = hist.length - up;
     $("op-summary").textContent = "Last " + hist.length + " checks: " + up + " up, " + down + " down" +
       (median !== null ? "; median response " + median + " ms." : ".");
+  }).catch(function () {});
+
+  /* ---------- live header check ---------- */
+  var HDRS = [
+    ["content-security-policy", "Content-Security-Policy"],
+    ["strict-transport-security", "Strict-Transport-Security"],
+    ["x-frame-options", "X-Frame-Options"],
+    ["x-content-type-options", "X-Content-Type-Options"],
+    ["referrer-policy", "Referrer-Policy"],
+    ["permissions-policy", "Permissions-Policy"]
+  ];
+  (function () {
+    var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 8000) : null;
+    fetch("/", { method: "HEAD", cache: "no-store", credentials: "same-origin", signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) {
+        if (!r.ok) return;
+        var body = $("hdr-rows");
+        body.textContent = "";
+        HDRS.forEach(function (h) {
+          var v = r.headers.get(h[0]);
+          var tr = el("tr");
+          tr.appendChild(el("td", null, h[1]));
+          var st = el("td");
+          st.appendChild(el("span", "badge " + (v ? "ok" : "bad"), v ? "Present" : "Missing"));
+          tr.appendChild(st);
+          tr.appendChild(el("td", "hv" + (v ? "" : " muted"), v || "Not sent"));
+          body.appendChild(tr);
+        });
+      })
+      .catch(function () {})
+      .finally(function () { if (timer) clearTimeout(timer); });
+  })();
+
+  /* ---------- API performance ---------- */
+  getJSON("/api/perf").then(function (d) {
+    var req = num(d.requests), p50 = num(d.p50_ms), mx = num(d.max_ms), er = num(d.errors);
+    if (req !== null) $("pf-req").textContent = req;
+    if (p50 !== null) $("pf-p50").textContent = p50 + " ms";
+    if (mx !== null) $("pf-max").textContent = mx + " ms";
+    if (er !== null) {
+      $("pf-err").textContent = er;
+      $("pf-err").classList.add(d.errors > 0 ? "bad" : "ok");
+    }
+    var hours = Array.isArray(d.hourly) ? d.hourly.filter(function (h) {
+      return h && typeof h.requests === "number" && isFinite(h.requests) && h.requests >= 0;
+    }).slice(-24) : [];
+    if (!hours.length) return;
+    var bars = $("pf-bars");
+    bars.textContent = "";
+    var top = 1;
+    hours.forEach(function (h) { if (h.requests > top) top = h.requests; });
+    for (var i = hours.length; i < 24; i++) bars.appendChild(el("span", "bar empty"));
+    var busiest = hours[0], errHours = 0;
+    var hm = function (t) { return t.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); };
+    hours.forEach(function (h) {
+      var hasErr = typeof h.errors === "number" && h.errors > 0;
+      if (hasErr) errHours++;
+      if (h.requests > busiest.requests) busiest = h;
+      var b = el("span", "bar" + (hasErr ? " err" : ""));
+      b.style.height = (h.requests > 0 ? Math.max(6, Math.round(h.requests / top * 100)) : 2) + "%";
+      var t = date(h.t);
+      b.title = (t ? hm(t) + ": " : "") + h.requests + " requests" +
+        (typeof h.p50_ms === "number" ? ", median " + h.p50_ms + " ms" : "") +
+        (hasErr ? ", " + h.errors + " errors" : "");
+      bars.appendChild(b);
+    });
+    var bt = date(busiest.t);
+    var sum = hours.reduce(function (a, h) { return a + h.requests; }, 0);
+    var upd = date(d.updated_at);
+    $("pf-summary").textContent = sum.toLocaleString() + " requests across " + hours.length + " hours" +
+      (busiest.requests > 0 ? "; busiest hour " + (bt ? "starting " + hm(bt) + " " : "") + "with " + busiest.requests : "") +
+      "; " + (errHours ? errHours + (errHours === 1 ? " hour" : " hours") + " with errors" : "no hours with errors") +
+      (upd ? ". Updated " + rel(upd) + "." : ".");
   }).catch(function () {});
 })();
