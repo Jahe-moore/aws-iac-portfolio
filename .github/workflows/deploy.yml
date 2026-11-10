@@ -18,7 +18,7 @@ concurrency:
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   TF_VAR_aws_region: ${{ vars.AWS_REGION }}
-  TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
+  TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
 
 jobs:
   terraform:
@@ -29,20 +29,28 @@ jobs:
       - name: Security scan (Checkov)
         run: |
           pip install --quiet checkov
-          checkov -d . --framework terraform --quiet --compact -o json > checkov.json || true
+          checkov -d . --framework terraform -o json > checkov.json || true
           python3 - <<'EOF'
           import json
-          r = json.load(open("checkov.json"))
-          r = r[0] if isinstance(r, list) else r
-          s = r["summary"]
-          skips = [{"id": c["check_id"], "reason": (c.get("check_result") or {}).get("suppress_comment", "")}
-                   for c in r["results"]["skipped_checks"]]
-          json.dump({"tool": "Checkov", "passed": s["passed"], "failed": s["failed"],
-                     "skipped": s["skipped"], "skips": skips}, open("scan.json", "w"))
-          print(f"passed {s['passed']}, failed {s['failed']}, skipped {s['skipped']}")
-          for c in r["results"]["failed_checks"]:
+          data = json.load(open("checkov.json"))
+          reports = data if isinstance(data, list) else [data]
+          passed = failed = 0
+          failures, skips = [], []
+          for r in reports:
+              res = r.get("results", {})
+              passed += r.get("summary", {}).get("passed", 0)
+              failures += res.get("failed_checks", [])
+              for c in res.get("skipped_checks", []):
+                  skips.append({"id": c["check_id"], "reason": (c.get("check_result") or {}).get("suppress_comment", "")})
+          failed = len(failures)
+          json.dump({"tool": "Checkov", "passed": passed, "failed": failed,
+                     "skipped": len(skips), "skips": skips}, open("scan.json", "w"))
+          print(f"passed {passed}, failed {failed}, skipped {len(skips)}")
+          for c in failures:
               print("FAILED", c["check_id"], c["resource"], c["file_path"])
-          if s["failed"]:
+          if passed == 0:
+              raise SystemExit("scan produced no results")
+          if failed:
               raise SystemExit(1)
           EOF
 
