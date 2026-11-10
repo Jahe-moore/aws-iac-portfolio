@@ -43,32 +43,32 @@
         <div class="tile">
           <span class="tile-k">Monthly cost</span>
           <span class="tile-v">~$0.10</span>
-          <span class="tile-s">AWS free tier covers almost everything; $10 budget alert</span>
+          <span class="tile-s">Free tier; $10 alert</span>
         </div>
         <div class="tile">
           <span class="tile-k">Push to live</span>
           <span class="tile-v">~2 min</span>
-          <span class="tile-s">Every change ships through the pipeline</span>
+          <span class="tile-s">Via the pipeline</span>
         </div>
         <div class="tile">
           <span class="tile-k">Uptime</span>
           <span class="tile-v pending" id="r-uptime">Not available yet</span>
-          <span class="tile-s">Checked every 30 minutes</span>
+          <span class="tile-s">Checked every 30 min</span>
         </div>
         <div class="tile">
-          <span class="tile-k">Security scan</span>
+          <span class="tile-k">Scan passed / failed</span>
           <span class="tile-v pending" id="r-scan">Not available yet</span>
-          <span class="tile-s">Checkov code scanner, every push; build stops on any failure</span>
+          <span class="tile-s">Any failure blocks deploy</span>
         </div>
         <div class="tile">
           <span class="tile-k">Stored cloud keys</span>
           <span class="tile-v">0</span>
-          <span class="tile-s">Short-lived login tokens (OIDC) only</span>
+          <span class="tile-s">Short-lived OIDC tokens</span>
         </div>
         <div class="tile">
           <span class="tile-k">Manual changes</span>
           <span class="tile-v pending" id="r-drift">Not available yet</span>
-          <span class="tile-s">Nightly check that AWS matches the code</span>
+          <span class="tile-s">AWS matches the code</span>
         </div>
       </div>
 
@@ -401,7 +401,7 @@
       <article class="card">
         <div class="card-head">
           <h3>Uptime</h3>
-          <p class="note">Checked every 30 minutes by a Lambda on an EventBridge schedule.</p>
+          <p class="note">Checked every 30 min by a Lambda on an EventBridge schedule.</p>
         </div>
         <div class="stats stats-4">
           <div class="stat"><span class="stat-v" id="op-status">--</span><span class="stat-k">Status</span></div>

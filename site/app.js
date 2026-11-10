@@ -232,9 +232,7 @@
       }
       if (s !== null) $("sec-skipped").textContent = s;
       if (p !== null && f !== null) {
-        var small = document.createElement("small");
-        small.textContent = f + " failed";
-        setTile("r-scan", [p + " passed", small], scan.failed > 0 ? "bad" : null);
+        setTile("r-scan", [p + " / " + f], scan.failed > 0 ? "bad" : null);
         fill($("sec-scan-inline"), ["Latest: " + p + " passed, " + f + " failed" + (s !== null ? ", " + s + " skipped as accepted risks." : ".")]);
       }
       if (when) $("sec-tool").textContent = tool + " results from the build deployed " + rel(when) + ".";
